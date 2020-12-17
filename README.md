@@ -1,4 +1,4 @@
-# Writeups for NPST 2020 CTF
+# Writeup for NPST 2020 CTF
 
 ## Preface
 I just want to start of by saying that this is my first ever writeup, and the second CTF I have ever participated in (the first being NPST 2019). It being my first writeup means that I don't really have any clue what I'm doing, and I'm just writing whatever comes to mind. So please bear this in mind if you do decide to read through. 
@@ -223,4 +223,87 @@ for a in re.findall(r'value ([a-zA-Z]*) : ([0-9]+|NULL)', test):
 print(final[::-1])
 ```
 Output: `Lor3m1psumD0lorPST{ASN1IChooseYou}s1tAm3t`
+
 The flag is `PST{ASN1IChooseYou}`
+
+## December 17th
+This day was quite similar to the 8th, but of course a tiny bit harder. We were told that they had been listening to an SPST's agent's phone, and that the network operator had sent data according to ETSI232-1. [ETSI232-1 is a standard for Lawful Interception (LI); Handover Interface and Service-Specific Details (SSD) for IP delivery;](https://www.etsi.org/deliver/etsi_ts/102200_102299/10223201/03.20.01_60/ts_10223201v032001p.pdf). Included were 2 files, `ETSI232-1.txt` (an ASN.1 schema) and `data.b64.txt` (base64 encoded data). This time I actually knew how asn1tools worked, and I was able to make it properly decode the data.b64 according to the schema. I used this Pyhthon script to decode:
+```
+import asn1tools
+from base64 import b64decode
+
+schema = asn1tools.compile_files('ETSI232-1.txt')
+b64data = open('data.b64.txt', 'r').read()
+
+data = schema.decode('PS-PDU', b64decode(b64data))
+```
+Data would then be a dict of the decoded data. The interesting part of the dict was the payload part, where the messages were. It looks something like this:
+```
+{
+    payloadDirection fromTarget,
+    cCContents undefinedCC : '634B40044F5241484005'H
+},
+{
+    payloadDirection fromTarget,
+    cCContents undefinedCC : '6B5241560A'H
+},
+{
+    payloadDirection toTarget,
+    cCContents undefinedCC : '6C414D0A04'H
+},
+{
+    payloadDirection toTarget,
+    cCContents undefinedCC : '6C45560440510442514A4A4150044A4B410443E79C5D1B'H
+},
+
+...
+```
+I assumed that the the hex strings were the messages, but they didn't decode into ASCII. I did some experimenting in [CyberChef](https://gchq.github.io/CyberChef/), and using the XOR bruteforce, I noticed that XORing every character of the hex decoded string with 0x24 would give what I was looking for. [Example](https://gchq.github.io/CyberChef/#recipe=From_Hex('Auto')XOR_Brute_Force(1,100,0,'Standard',false,true,false,'')&input=NkM0NTU2MDQ0MDUxMDQ0MjUxNEE0QTQxNTAwNDRBNEI0MTA0NDNFNzlDNUQxQg).
+
+I then made a short Python script that did this for every message.
+```
+import asn1tools
+from base64 import b64decode
+
+schema = asn1tools.compile_files('ETSI232-1.txt')
+b64data = open('data.b64.txt', 'r').read()
+
+data = schema.decode('PS-PDU', b64decode(b64data))
+
+for x in data['payload'][1]:
+    direction = x['payloadDirection']
+    author = direction.replace('fromTarget', 'Pen Gwyn:').replace('toTarget', 'SPST HQ?:')
+    hex_data = x['cCContents'][1]
+
+    print(author, ''.join([chr(y ^ 0x24) for y in hex_data]))
+```
+
+This would then output the (rather funny) conversation, but there was no flag in it. The interesting part of the conversation was the last part:
+```
+...
+
+Pen Gwyn: d9c36ccf
+SPST HQ?: hæ? - (What?)
+Pen Gwyn: 6a38
+Pen Gwyn: 4281
+Pen Gwyn: b48f
+SPST HQ?: ????
+Pen Gwyn: d14db694daae
+SPST HQ?: Hva ser jeg på - (What am I looking at?)
+Pen Gwyn: Det skal være en uuid. - (It's supposed to be a uuid)
+Pen Gwyn: Bindestrekknappen min funker ikke - (My dash-button isn't working)
+SPST HQ?: Og hva godt skal det gjøre meg? - (And what good am I supposed to do with this?)
+Pen Gwyn: Du må ta md5 av uuid'en som lowercase hex og legge til det vanlige. - (You have to take the md5 of the uuid as a lowercase hex, and add the usual)
+SPST HQ?: Skjønner! - (I understand!)
+SPST HQ?: Det funker ikke ... - (It doesn't work..)
+Pen Gwyn: Whoops. Uuiden skulle starte med c9c(...) - (Whoops. The uuid is supposed to start with c9c(...))
+Pen Gwyn: ... og slutte med (...)4a3 - (... and end with (...)4a3)
+SPST HQ?: WIN! Takk. - (WIN! Thanks)
+Pen Gwyn: Under og inn - (Under and in)
+```
+Since Pen Gwyn's dash-button was broken, he sent the uuid in seperate messages, which combined gives: `d9c36ccf-6a38-4281-b48f-d14db694daae`. As the last few messages said, there was an error, and you had to replace the start with c9c and the end with 4a3; `d9c36ccf-6a38-4281-b48f-d14db694daae`. I then got the md5 of this string
+```
+$ echo -n c9c36ccf-6a38-4281-b48f-d14db694d4a3 | md5sum
+0ae06caf767ac7ebce290cfc57be6a6f  -
+```
+The flag was then `PST{0ae06caf767ac7ebce290cfc57be6a6f}`

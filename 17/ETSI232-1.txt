@@ -1,0 +1,62 @@
+Spec DEFINITIONS ::= BEGIN
+    LawfulInterceptionIdentifier ::= OCTET STRING (SIZE (1..25)) 
+    
+    PS-PDU ::= SEQUENCE { 
+        pSHeader    [1] PSHeader,
+        payload     [2] Payload
+    } 
+
+    PSHeader ::= SEQUENCE { 
+        li-psDomainId                   [0] OBJECT IDENTIFIER,
+        lawfulInterceptionIdentifier    [1] LawfulInterceptionIdentifier, 
+        authorizationCountryCode        [2] PrintableString (SIZE (2)) OPTIONAL,
+        communicationIdentifier         [3] CommunicationIdentifier,
+        sequenceNumber                  [4] INTEGER (0..4294967295),
+        timeStamp                       [5] GeneralizedTime OPTIONAL,
+        ...,
+        interceptionPointID             [6] PrintableString (SIZE (1..8)) OPTIONAL
+    }
+
+    Payload ::= CHOICE { 
+        cCPayloadSequence  [1] SEQUENCE OF CCPayload,
+       ...
+    }
+
+    CommunicationIdentifier ::= SEQUENCE  {
+        networkIdentifier [0] NetworkIdentifier,
+        communicationIdentityNumber [1] INTEGER (0..4294967295) OPTIONAL,
+        deliveryCountryCode [2] PrintableString (SIZE (2)) OPTIONAL,
+        ...
+    }
+    NetworkIdentifier ::= SEQUENCE  {
+        operatorIdentifier          [0] OCTET STRING (SIZE(1..16)),
+        networkElementIdentifier    [1] OCTET STRING (SIZE(1..16)) OPTIONAL,
+        ...,
+        eTSI671NEID                 [2] Network-Element-Identifier OPTIONAL
+    }
+
+    Network-Element-Identifier ::=  CHOICE {
+        iP-Format           [3] OCTET STRING (SIZE (1..25)),
+        dNS-Format          [4] OCTET STRING (SIZE (1..25)),
+        ...
+    }
+
+
+    CCPayload ::= SEQUENCE { 
+        payloadDirection    [0] PayloadDirection OPTIONAL,
+        timeStamp           [1] GeneralizedTime OPTIONAL,
+        cCContents          [2] CCContents,
+        ...
+    }
+
+    PayloadDirection ::= ENUMERATED {
+        fromTarget(0),
+        toTarget(1),
+        ...
+    }
+
+    CCContents ::= CHOICE { 
+        undefinedCC     [0]  OCTET STRING,
+        ...
+    }
+END
