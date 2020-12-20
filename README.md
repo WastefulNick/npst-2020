@@ -226,6 +226,216 @@ Output: `Lor3m1psumD0lorPST{ASN1IChooseYou}s1tAm3t`
 
 The flag is `PST{ASN1IChooseYou}`
 
+## December 9th
+Today NPST had received a chat log from an SPST agent, which included a worrying amount of emojis. The message is obfuscated, and they're wondering if the message could possibly be HEXMAS encoded. Message:
+```
+🎅🤶❄⛄🎄🎁🕯🌟✨🔥🥣🎶🎆👼🦌🛷
+
+🤶🛷✨🎶🎅✨🎅🎅🛷🤶🎄🔥🎆🦌🎁🛷🎅❄🛷🛷🎅🎶🎅✨🎅🦌🥣🔥🛷🦌⛄🎅🌟🛷🛷🔥🎄🦌🎅✨🦌🦌🕯🎶🎅🤶🦌❄🎁🕯🎅✨🎶👼🌟🎆🕯🌟❄👼🎅🎅🤶❄🎄👼🎆🔥🎁🛷🤶👼🎅🎅🎅🎅🎅🎅
+```
+The first thing I did was to do some simple analysis in Python. After printing out random stuff, I decided to print out how many unique emojis there are; 16. I should have understood this sooner, from the HEXMAS hint, but better late than never. On the first line were 16 emojis, so I guessed that these were the keys. 🎅=0x1, 🤶0x2, ..., 🛷=0xf.
+
+I then made a short Python script to decode the message.
+```
+hexmas = open('input.txt', 'r', encoding='utf-8').read().split('\n')
+
+lookup = hexmas[0]
+message = hexmas[-1]
+
+message_hex = ''.join([hex(list(lookup).index(x))[2:] for x in message])
+print(message_hex)
+```
+The output of this was `1f8b0800f149ce5f02ff0b080ea9fe307ff94e08ee6b01e25608bd7c672d00124dc95f1d000000`. Translating this from hex did however not return any useful data. Luckily [CyberChef's](https://gchq.github.io/CyberChef/#recipe=Magic(3,false,false,'')&input=MWY4YjA4MDBmMTQ5Y2U1ZjAyZmYwYjA4MGVhOWZlMzA3ZmY5NGUwOGVlNmIwMWUyNTYwOGJkN2M2NzJkMDAxMjRkYzk1ZjFkMDAwMDAw) magic managed to find out that it was gunzip compressed. Converting the hex string from hex, and then gunzip decompressing it gives the flag: `PST{🧹🧹🎄🎅🎄🧹}` .
+
+## December 10th
+On this day we received yet another Slede8 task to solve.
+```
+Føde består av to tall, A og B (The feed contains 2 numbers, A and B)
+Skriv ut resultatet av (A + B) mod 256 som en ASCII-streng (Write the result of A + B mod 256 as an ASCII-string)
+
+Eksempel: A=0xA0 og B=0x08 => '168'
+Eksempel: A=0xFF og B=0xFF => '254'
+```
+Because of the modulo 256 you could ignore overflows, which made it a bit easier. The challenge with this was converting hex -> decimal, to be able to print out the number in ASCII. A good way to do this, is working your way down. For example given the input `a0e6`, you would then find the sum of these (%256): `0x86` (134 in base10). You would then check that if the number is larger than 200, since it's not it will check if it's larger than 100. Since it is, add 1 to the `hundreds` register. Then subtract 100 from the value, 134-100=34. Then loop over and subtract 10's from it, until the value is less than 10. After looping 3 times, the remaining value will be 4. The `hundred`, `tens` and `ones` register will respectively hold; `0x01`, `0x03` and `0x04`. Since the ASCII value of `0` is `0x30`, we can just add `0x30` to all the registers, the program will then print out: 313334 (0x31, 0x33, 0x34), or in ASCII; 134.
+```
+LES r0
+LES r1
+PLUSS r0, r1
+
+SETT r2, 0x64
+SETT r3, 0xc8
+SETT r4, 0x0a
+SETT r6, 0x01
+
+SEL r0, r3
+BHOPP set200
+
+SEL r0, r2
+BHOPP set100
+
+SETT r7, r0
+PLUSS r7, r4
+HOPP tens
+
+set100:
+SETT r10, 0x01
+MINUS r0, r2
+SETT r7, r0
+PLUSS r7, r4
+HOPP tens
+
+set200:
+SETT r10, 0x02
+MINUS r0, r3
+SETT r7, r0
+PLUSS r7, r4
+HOPP tens
+
+tens:
+PLUSS r5, r4
+SEL r0, r5
+PLUSS r11, r6
+MINUS r7, r4
+BHOPP tens
+MINUS r11, r6
+
+SETT r12, r7
+SETT r8, 0x30
+
+PLUSS r10, r8
+PLUSS r11, r8
+PLUSS r12, r8
+
+SETT r15, 0x30
+
+LIK r10, r15
+BHOPP removezeroes
+
+SKRIV r10
+
+under100:
+SKRIV r11
+
+under10:
+SKRIV r12
+
+STOPP
+
+removezeroes:
+LIK r11, r15
+BHOPP under10
+HOPP under100
+```
+Upon submitting this code, we receive the flag `PST{++AndKissesWillBeAwardedToYou}`.
+
+## December 11th
+In our daily mail we were told that NPST had noticed an unauthorized change to Santa's naughty and nice list. An md5 sum had been modified, but they needed our help to find out which. Attached was a zip file, `liste.zip`. In the zip file was 3 SQLite database files. The only important file was the `liste.db` file. Using [`sqlitebrowser`](https://sqlitebrowser.org/) to open the file, I saw the 2 tables `snille` (nice) and `slemme` (naughty). The files were in the format `firstname:lastname:md5hash`. I did some quick tests, and found out that the md5hash was calculated by `md5(firstnamelastname)`. Since there was a modified md5 hash, it would be easy to enumerate every line in the file, and check if the md5hash actually matched the md5 of the first, lastname. I exported the files as .csv files, and I wrote a short Python script to check if all md5 hashes were correct.
+```
+from hashlib import md5
+
+with open('snille.csv', 'r', encoding='utf-8') as f:
+    for line in f.readlines()[1:]:
+        rows = line.strip().split(';')
+        hashed = md5(f'{rows[0]}{rows[1]}'.encode()).hexdigest()
+        if hashed != rows[-1]:
+            print(f'PST{{{rows[2]}}}')
+```
+In the nice list, there was 1 md5 that didn't match the md5 of first, last. This hash, wrapped in `PST{}` was the flag: `PST{49422712408d5409a3e40945204314e6}` 
+
+## December 12th
+SPST had allegedly posted some s8asm code on their GitHub, which was luckily saved by our colleague before it was deleted. Attached was the file `program.s8`, which was assembled Slede8 code. The first step was to disassemble the file into working s8asm. I had already created an s8 disassembler previously (which I will not be sharing). Slede8 doesn't have a lot of opcodes, so it's very simple to create a disassembler. My disassembler gave me this code as output (manually changed function names):
+```
+SETT r5, 0x00                           ;0x0
+SETT r6, 0x01                           ;0x2
+SETT r10, 0x00                          ;0x4
+SETT r11, 0x01                          ;0x6
+SETT r12, 0x00                          ;0x8
+FINN xor_data                           ;0xa
+SETT r9, 0x1a                           ;0xc
+
+decrypt_loop:
+LES r2                                  ;0xe
+LAST r3                                 ;0x10
+SETT r7, r5                             ;0x12
+PLUSS r7, r6                            ;0x14
+XELLER r2, r7                           ;0x16
+XELLER r2, r3                           ;0x18
+ELLER r12, r2                           ;0x1a
+SETT r5, r6                             ;0x1c
+SETT r6, r7                             ;0x1e
+MINUS r9, r11                           ;0x20
+PLUSS r0, r11                           ;0x22
+ULIK r9, r10                            ;0x24
+BHOPP decrypt_loop                      ;0x26
+
+LIK r12, r10                            ;0x28
+BHOPP correct                           ;0x2a
+
+FINN failed_string                      ;0x2c
+TUR write_output                        ;0x2e
+STOPP                                   ;0x30
+
+correct:
+FINN correct_string                     ;0x32
+TUR write_output                        ;0x34
+STOPP                                   ;0x36
+
+xor_data:
+.DATA 0x51,0x51,0x57,0x7e,0x6e,0x64,0x77,0x12,0x59,0x38,0xf3,0x8a,0x48,0x3d,0xeb,0x53,0x7d,0x21,0x5c,0xaf,0x1c,0xae,0x50,0x25,0x55,0x3f
+
+correct_string:
+.DATA 0x4b,0x6f,0x72,0x72,0x65,0x6b,0x74,0x21
+
+failed_string:
+.DATA 0x00,0x46,0x65,0x69,0x6c,0x21,0x00
+
+write_output:
+LAST r2                                 ;0x62
+LIK r2, r10                             ;0x64
+BHOPP return                            ;0x66
+SKRIV r2                                ;0x68
+PLUSS r0, r11                           ;0x6a
+HOPP write_output                       ;0x6c
+
+return:
+RETUR                                   ;0x6e
+```
+By looking at the code, our goal was to jump to the address 0x32, which would then print `Korrekt!` (Correct!). On line 0x28 it checked if the register `r12`'s value was 0x00. So to get print out the `correct_string` we had to keep r12 to 0x00. r12 was only modified on line 0x1a, where it was ORed with r2. For r12 to be 0x00, r2 had to also be 0x00. For r2 to be 0x00, we have to look at the line above, where r2 is XORed with r3. One of the properties of XOR, is that if you XOR a value with itself, it will always become 0. Our current goal was then to get r2 to be the same as r3. r2's value was determined by the feed input XORed with r7. We then had the equation: x ^ r7 = r3. Where x is the feed (r2). I could have implemented the entire `decrypt_loop` in Python, but I was too tired to do this. Instead I wrote a short Python script to find `x` if you knew r7 and r3.
+```
+r3 = ''
+r7 = ''
+
+result = int(r3, 16)
+to_xor = int(r7, 16)
+
+for x in range(0, 255):
+    if x ^ to_xor == result:
+        print(hex(x))
+        break
+```
+I then proceeded to painstakingly find r3 and r7 for all of the 26 feed bytes by looking at the register and manually filling it out in the Python script. After torturing myself for what felt like an eternity, I finally got the complete feed: `5053547b666962306e616363315f306e6574316d335f7034647d` which when ran with the program printed `Korrekt!`. I then converted the hex to ASCII, and got the flag: `PST{fib0nacc1_0net1m3_p4d}`.
+
+## December 13th
+NPST had received a message over fax, but no one in the office understood the message. It appeared to be hex-encoded, but hex-decoding it didnt give anything meaningful. Included was the file `melding.txt`. At first glance the challenge reminded me of one they had in last year's CTF, titled `Linebreak it till you make it`. It was a file with 0's and 1's, and when resized the correct way and ctrl + f'ing for 1, you would see the flag. This did however not work for this challenge, I tried ctrl + f for all hex values, with no result. I then spent probably hours reading up on fax, and trying to somehow convert the data to a fax document or similar. After a long break, I came back to the challenge. I looked at the output from a Python script I made at the start:
+```
+unique = {}
+
+f = open('melding.txt', 'r').read()
+
+for char in f:
+    if char == '\n':
+        pass
+    elif char in unique:
+        unique[char] += 1
+    else:
+        unique[char] = 1
+
+print(sorted(unique.items(), key=lambda item: item[1]))
+```
+The output looked like this: `[('D', 35), ('8', 39), ('0', 41), ('B', 42), ('9', 46), ('A', 47), ('6', 49), ('4', 56), ('3', 160), ('2', 178), ('C', 180), ('E', 183), ('5', 189), ('1', 189), ('F', 192), ('7', 194)]`. I had noticed that half of the characters appeared around 35-55 times, while the other half appeared around 160-195 times. Thinking back to the last year's linebreak task, I decided to try something incredibly stupid. Using Visual Studio Code's regex search, I searched for the 8 least occuring values in the message. Highlighted was the flag: `PST{SNEAKY_FLAG_IS_SNEAKY}`.
+
+![Sneaky](sneaky_flag.png)
+
 ## December 17th
 This day was quite similar to the 8th, but of course a tiny bit harder. We were told that they had been listening to an SPST's agent's phone, and that the network operator had sent data according to ETSI232-1. [ETSI232-1 is a standard for Lawful Interception (LI); Handover Interface and Service-Specific Details (SSD) for IP delivery;](https://www.etsi.org/deliver/etsi_ts/102200_102299/10223201/03.20.01_60/ts_10223201v032001p.pdf). Included were 2 files, `ETSI232-1.txt` (an ASN.1 schema) and `data.b64.txt` (base64 encoded data). This time I actually knew how asn1tools worked, and I was able to make it properly decode the data.b64 according to the schema. I used this Pyhthon script to decode:
 ```
