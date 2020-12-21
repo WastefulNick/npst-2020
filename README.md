@@ -98,7 +98,7 @@ print('PST{'+str(sum)+'}')
 Running this code with the proper Maaltall values for all years would print the flag `PST{999159}`.
 
 ## December 5th
-In our email today there was a file titled log.csv, seemingly containing password change requests for all workers. The email told us that there were reports of people being unable to log in, and we had to seartch through the ~5100 line file to see if we were able to find anything out of the ordinary. I did some experimenting by parsing the data in different ways using Python, and I kept doing this until I noticed something interesting. What gave me results was creating a Python script that printed out all the unique names, and how many times they occured in the log.
+In our email today there was a file titled log.csv, seemingly containing password change requests for all workers. The email told us that there were reports of people being unable to log in, and we had to search through the ~5100 line file to see if we were able to find anything out of the ordinary. I did some experimenting by parsing the data in different ways using Python, and I kept doing this until I noticed something interesting. What gave me results was creating a Python script that printed out all the unique names, and how many times they occured in the log.
 
 ```
 from urllib.parse import unquote
@@ -436,6 +436,15 @@ The output looked like this: `[('D', 35), ('8', 39), ('0', 41), ('B', 42), ('9',
 
 ![Sneaky](sneaky_flag.png)
 
+## December 14th
+TODO: this
+
+## December 15th
+This challenge was very similar to the one on December 7th. Once again we received a complex16u file, this time titled `data2.complex16u`. After opening it in URH I spent some time clicking around, but it seemed that no matter what I did, the binary representation of the signal was nonsense. After a while of clicking I found the `Decoding` tab (under Edit). I pasted in the binary string URH gave me for the signal, and tried all of the different decoding methods. `Manchester II` decoding gave the flag: `PST{m4nch3st3r_3nc0d1ng_1s_4_l0t_0f_fun!}`.
+
+## December 16th
+TODO: this
+
 ## December 17th
 This day was quite similar to the 8th, but of course a tiny bit harder. We were told that they had been listening to an SPST's agent's phone, and that the network operator had sent data according to ETSI232-1. [ETSI232-1 is a standard for Lawful Interception (LI); Handover Interface and Service-Specific Details (SSD) for IP delivery;](https://www.etsi.org/deliver/etsi_ts/102200_102299/10223201/03.20.01_60/ts_10223201v032001p.pdf). Included were 2 files, `ETSI232-1.txt` (an ASN.1 schema) and `data.b64.txt` (base64 encoded data). This time I actually knew how asn1tools worked, and I was able to make it properly decode the data.b64 according to the schema. I used this Pyhthon script to decode:
 ```
@@ -517,3 +526,72 @@ $ echo -n c9c36ccf-6a38-4281-b48f-d14db694d4a3 | md5sum
 0ae06caf767ac7ebce290cfc57be6a6f  -
 ```
 The flag was then `PST{0ae06caf767ac7ebce290cfc57be6a6f}`
+
+## December 18th
+TODO: this
+
+## December 19th
+In today's email we were explained that the elf Sigurd had created a way to split a secret into X keys. Further, the algorithm is made in such a way where only a Y amount of keys is required to get the secret. The secret password to the Christmas present vault was split into 5 (X) keys, of which 3 (Y) of them were required to open the vault. Two of the keys were given to Santa Claus, 1 key to elf Reidar, 1 key to elf Sigurd and 1 key to elf Adrian. This means that the vault can either be opened by Santa Claus + one elf, or by all 3 elves. Santa Claus has however lost both his keys, it is necessary to get back the vault's secret. We are also told that Sigurd's favorite number is `6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151` and we were given the 3 secrets held by the elves:
+
+Reidar: (3, 570999082059702856147787459046280784390391309763131887566210928611371012340016305879778028495709778777)
+
+Sigurd: (4, 922383132557981536854118203074761267092170577309674587606956115449137789164641724882718353723838873409)
+
+Adrian: (5, 1361613195680829887737031633110361870469394661742852962657887598996346260195423498636393760259000241699)
+
+Using a well-crafted search, I was quickly able to find out that the method used was probably [`Shamir's Secret Sharing`](https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing). Luckily there was a [Python example on the Wikipedia page](https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing#Python_example), so I copied this and modified it a bit, and made it spit out the flag.
+```
+import codecs
+
+def _extended_gcd(a, b):
+    x = 0
+    last_x = 1
+    y = 1
+    last_y = 0
+    while b != 0:
+        quot = a // b
+        a, b = b, a % b
+        x, last_x = last_x - quot * x, x
+        y, last_y = last_y - quot * y, y
+    return last_x, last_y
+
+def _divmod(num, den, p):
+    inv, _ = _extended_gcd(den, p)
+    return num * inv
+
+def _lagrange_interpolate(x, x_s, y_s, p):
+    k = len(x_s)
+    assert k == len(set(x_s)), "points must be distinct"
+    def PI(vals):  # upper-case PI -- product of inputs
+        accum = 1
+        for v in vals:
+            accum *= v
+        return accum
+    nums = []  # avoid inexact division
+    dens = []
+    for i in range(k):
+        others = list(x_s)
+        cur = others.pop(i)
+        nums.append(PI(x - o for o in others))
+        dens.append(PI(cur - o for o in others))
+    den = PI(dens)
+    num = sum([_divmod(nums[i] * den * y_s[i] % p, dens[i], p)
+               for i in range(k)])
+    return (_divmod(num, den, p) + p) % p
+
+def recover_secret(shares, prime):
+    if len(shares) < 2:
+        raise ValueError("need at least two shares")
+    x_s, y_s = zip(*shares)
+    return _lagrange_interpolate(0, x_s, y_s, prime)
+
+prime = 6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151 
+shares = [
+    (3, 570999082059702856147787459046280784390391309763131887566210928611371012340016305879778028495709778777),
+    (4, 922383132557981536854118203074761267092170577309674587606956115449137789164641724882718353723838873409),
+    (5, 1361613195680829887737031633110361870469394661742852962657887598996346260195423498636393760259000241699)]
+
+recovered = recover_secret(shares, prime)
+print(codecs.decode(hex(recovered)[2:], 'hex').decode())
+```
+The flag is: `PST{f0rd3lt_4nsv4r_3r_d3t_b3st3_4nsv4r3t!}`
