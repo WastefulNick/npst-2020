@@ -28,7 +28,7 @@ Running this code will output `<=>?@ABCDEFGHIJKLMNOPQRSPST{BabyPenGwynDuhDuhDuhD
 Around 19:00 on December 2nd everyone received a mail from our colleague, saying they guessed the password to the previously mentioned private.7z. The message was: `Jeg gjettet passordet til zip-fila,, og det funket!` (`I guessed the passord to the zip-file,, and it worked!`). You may think that the 2 commas are a spelling mistake, but the day afterwards, the 3rd, we received a new mail clarifying that the password to the zip-file was literally `til zip-fila,` (`to the zip-file,`).
 After extracting the zip file, there were 2 files inside. The file `cupcake.png`, and a mysterious `kladd.txt`.
 
-![Cupcake](cupcake.png)
+![Cupcake](media/cupcake.png)
 
 In our daily mail we were told to analyze the image, to see if we could find anything out of the ordinary. I used the tool zsteg, and was able to find this
 ```
@@ -37,7 +37,7 @@ b1,rgb,lsb,xy       .. text: "youtu.be/I_8ZH1Ggjk0"
 ```
 On the NPST website there was a file uploader called forbedre (enhance) that allowed you to upload images. [The YouTube link](youtu.be/I_8ZH1Ggjk0) lead to a video of the famous CSI enhance scene, which was a hint to use the enhance feature on the website on the image.
 
-![Enhance!](enhance.gif)
+![Enhance!](media/enhance.gif)
 
 After a bit of squinting, I was able to make out the flag `PST{HuskMeteren}`.
 
@@ -434,7 +434,7 @@ print(sorted(unique.items(), key=lambda item: item[1]))
 ```
 The output looked like this: `[('D', 35), ('8', 39), ('0', 41), ('B', 42), ('9', 46), ('A', 47), ('6', 49), ('4', 56), ('3', 160), ('2', 178), ('C', 180), ('E', 183), ('5', 189), ('1', 189), ('F', 192), ('7', 194)]`. I had noticed that half of the characters appeared around 35-55 times, while the other half appeared around 160-195 times. Thinking back to the last year's linebreak task, I decided to try something incredibly stupid. Using Visual Studio Code's regex search, I searched for the 8 least occuring values in the message. Highlighted was the flag: `PST{SNEAKY_FLAG_IS_SNEAKY}`.
 
-![Sneaky](sneaky_flag.png)
+![Sneaky](media/sneaky_flag.png)
 
 ## December 14th
 TODO: this
@@ -446,7 +446,7 @@ This challenge was very similar to the one on December 7th. Once again we receiv
 TODO: this
 
 ## December 17th
-This day was quite similar to the 8th, but of course a tiny bit harder. We were told that they had been listening to an SPST's agent's phone, and that the network operator had sent data according to ETSI232-1. [ETSI232-1 is a standard for Lawful Interception (LI); Handover Interface and Service-Specific Details (SSD) for IP delivery;](https://www.etsi.org/deliver/etsi_ts/102200_102299/10223201/03.20.01_60/ts_10223201v032001p.pdf). Included were 2 files, `ETSI232-1.txt` (an ASN.1 schema) and `data.b64.txt` (base64 encoded data). This time I actually knew how asn1tools worked, and I was able to make it properly decode the data.b64 according to the schema. I used this Pyhthon script to decode:
+This day was quite similar to the 8th, but of course a tiny bit harder. We were told that they had been listening to an SPST's agent's phone, and that the network operator had sent data according to ETSI232-1. [ETSI232-1 is a standard for Lawful Interception (LI); Handover Interface and Service-Specific Details (SSD) for IP delivery;](https://www.etsi.org/deliver/etsi_ts/102200_102299/10223201/03.20.01_60/ts_10223201v032001p.pdf). Included were 2 files, `ETSI232-1.txt` (an ASN.1 schema) and `data.b64.txt` (base64 encoded data). This time I actually knew how asn1tools worked, and I was able to make it properly decode the data.b64 according to the schema. I used this Pyhthon script to decode the conversation:
 ```
 import asn1tools
 from base64 import b64decode
@@ -487,14 +487,14 @@ from base64 import b64decode
 schema = asn1tools.compile_files('ETSI232-1.txt')
 b64data = open('data.b64.txt', 'r').read()
 
-data = schema.decode('PS-PDU', b64decode(b64data))
+data = schema.decode('PS-PDU', b64decode(b64data)) # decodes the ASN1 data using the schema
 
 for x in data['payload'][1]:
     direction = x['payloadDirection']
     author = direction.replace('fromTarget', 'Pen Gwyn:').replace('toTarget', 'SPST HQ?:')
     hex_data = x['cCContents'][1]
 
-    print(author, ''.join([chr(y ^ 0x24) for y in hex_data]))
+    print(author, ''.join([chr(y ^ 0x24) for y in hex_data])) # xors every byte of hex data with 0x24
 ```
 
 This would then output the (rather funny) conversation, but there was no flag in it. The interesting part of the conversation was the last part:
@@ -520,7 +520,7 @@ Pen Gwyn: ... og slutte med (...)4a3 - (... and end with (...)4a3)
 SPST HQ?: WIN! Takk. - (WIN! Thanks)
 Pen Gwyn: Under og inn - (Under and in)
 ```
-Since Pen Gwyn's dash-button was broken, he sent the uuid in seperate messages, which combined gives: `d9c36ccf-6a38-4281-b48f-d14db694daae`. As the last few messages said, there was an error, and you had to replace the start with c9c and the end with 4a3; `d9c36ccf-6a38-4281-b48f-d14db694daae`. I then got the md5 of this string
+Since Pen Gwyn's dash-button was broken, he sent the uuid in seperate messages, which combined gives: `d9c36ccf-6a38-4281-b48f-d14db694daae`. As the last few messages said, there was an error, and you had to replace the start with c9c and the end with 4a3; `c9c36ccf-6a38-4281-b48f-d14db694d4a3`. I then got the md5 of this string
 ```
 $ echo -n c9c36ccf-6a38-4281-b48f-d14db694d4a3 | md5sum
 0ae06caf767ac7ebce290cfc57be6a6f  -
@@ -595,3 +595,63 @@ recovered = recover_secret(shares, prime)
 print(codecs.decode(hex(recovered)[2:], 'hex').decode())
 ```
 The flag is: `PST{f0rd3lt_4nsv4r_3r_d3t_b3st3_4nsv4r3t!}`
+
+## December 20th
+Today an intruder had gained access to NPST's internal network, and it was our job to see if we could find anything of interest. We were supplied with a pcapng, titled `trafikk.pcapng`. I don't think I've ever solved a Wireshark challenge before, I've always given up on them without learning anything, but today it was going to be different. I first did some very basic searching; `find intruder wireshark log`. This lead me to [this great article](https://www.howtogeek.com/107945/how-to-identify-network-abuse-with-wireshark/) which introduced me to the `Protocol Hierarchy` under the `Statistics` tab. In there log there was a clear outlier, HTTP requests. HTTP requests were only 0.3% of the total packets, but stod for 7.4% of the total bytes. After applying `http` as a filter, I spotted a POST request to the domain `shadyserverfunction.azurewebsites.net`, which seems fairly shady. The requests included 2 files, along with a message; `Som avtalt` `(As agreed)`. The first file, titled `file1`, was a BASE64 encoded text file, which upon decoding looked something like this: 
+``` 
+CLIENT_HANDSHAKE_TRAFFIC_SECRET c08e088c3a8de40c4e984836f470b57ddd9563580d77039a07902265be82c392 9a396f29df0c36bd2a48bc02230ba5e45593c8b8645d5cc095762c633ce1f40b
+SERVER_HANDSHAKE_TRAFFIC_SECRET c08e088c3a8de40c4e984836f470b57ddd9563580d77039a07902265be82c392 677422db66a266caaef05441d06f62fd8d52a2133ecafc4b9a84fdad4e58c7fb
+
+...
+```
+I had no idea what this was, and ignored it for a while. The second file, `file2`, was a zip file, which unzipped into yet another pcapng file. I spent a long time analyzing the file, but with no success. I jumped back to file1, and tried searching using the little info in the file. After a little looking, I discovered that it was a key log file, used to decrypt TLS connections;
+```
+Key logs can be written by NSS so that external programs can decrypt TLS connections. Wireshark 1.6.0 and above can use these log files to decrypt packets. You can tell Wireshark where to find the key file via Edit→Preferences→Protocols→TLS→(Pre)-Master-Secret log filename.
+```
+[Info from Mozilla docs.](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Key_Log_Format)
+
+I imported the full text file into Wireshark, and when I now looked at the protocol hierarchy of the extracted pcapng file, I saw some HTTP requests, making up 0.1% of total packets. The request was for a file on the local network; `secretdoc.pdf`. Saving and opening this PDF revealed the flag; `PST{5h4dy53rv3r}`
+
+## December 21th
+Today's challenge was a text file titled `generasjoner.txt` `(generations.txt)`. The file had 10 lines, in the format `gen(linenum):` followed by binary.
+```
+gen0:01010000010100110101010001111011
+gen1:010110001101110101010110100010010001111101011101000100110101110100011111100111011101101100110111101001100101110101000001001101011101110100100110101001101001010100100110010101101001111111000001110101101001010100010110010110001010010111010110100101100101100010100011100111011100000100000101
+gen2:010011010100010101010010110111111010000101000101101111010100010110100000111001000100100111010000101110111100010101100011110101000100010111111010101110101111010111111011110100101110000001100010010100101111010110110011110011011011110001010010111100111100110110110100111001000110001110001101
+```
+The first 3 lines of the file.
+
+Performing binary -> ASCII on gen0 reveals `PST{`, however all the other lines seem to contain garbage data. Since all but the first line are the same length, I assumed that they all held the same data, however encoded in a weird way. My first guess was that I needed to find what differed from line to line, find the encryption method, and then use it backwards to finish gen0 and get the flag. This howver proved a lot more difficult than expected. Rather early on I also discovered what seemed like upside down triangles in the text file, which proved that there was some sort of pattern going on, but I couldn't make anything out of it.
+![Cones in generations.txt](media/generations.png)
+
+After this I however got totally stuck, and no matter how many hours I put into it, I couldn't solve it. After a lot of rabbit-hole digging, someone told me I should read a writeup from last year. I proceeded to do so, and in one of the challenges I didn't solve last year I recognized something. In [last year's task](https://github.com/myrdyr/ctf-writeups/tree/master/npst#mystisk-julekort) there was an image of a snail which had a similar triangle pattern on it as the one I saw in the text file. The snail was connected to [Rule 30](https://en.wikipedia.org/wiki/Rule_30), a rule for [Elementary Cellular Automation](https://mathworld.wolfram.com/ElementaryCellularAutomaton.html). I would highly recommend reading the (short) info in the previous link for a better understanding. Now I finally knew what to do, I had to find out which rules the text file followed, and then apply them to finish gen0. The text file did however not follow any of the standard or well known rules, but by writing down the rules of the file, we could find out it was rule 86 (01010110 in binary) according to Wolfram's classification scheme.
+
+![Rule 86](media/rule86.jpg)
+
+Knowing the rules of the text file we could easily use gen1 to finish gen0. gen1 was the output, and we knew what input generated different output. I wrote this short Python script to read gen1, and fill in gen0 accordingly.
+```
+gen0 = '01'
+gen1 = '010110001101110101010110100010010001111101011101000100110101110100011111100111011101101100110111101001100101110101000001001101011101110100100110101001101001010100100110010101101001111111000001110101101001010100010110010110001010010111010110100101100101100010100011100111011100000100000101'
+
+rules = {
+    '111': '0',
+    '110': '1',
+    '101': '0',
+    '100': '1',
+    '011': '0',
+    '010': '1',
+    '001': '1', 
+    '000': '0'
+}
+
+for x in range(len(gen0)-1, len(gen1)):
+    last_2 = gen0[x-1]+gen0[x] # get last 2 bits of gen0
+    below = gen1[x] # get the bit from gen1 that is below the last bit in gen0
+
+    for key in rules:
+        if key[:-1] == last_2 and rules[key] == below: # find a rule where the first 2 bits match the last 2 bits of gen0, and the resulting bit matches the bit in gen1
+            gen0 += key[2:] # add the last bit of the rule to gen0
+
+print(''.join(chr(int(gen0[i:i+8], 2)) for i in range(0, len(gen0), 8))) # print answer in ASCII
+```
+The output of this code is the flag; `PST{r3v3rs1bl3_c3llul4r_4ut0m4t0ns?}`
