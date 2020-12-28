@@ -437,7 +437,80 @@ The output looked like this: `[('D', 35), ('8', 39), ('0', 41), ('B', 42), ('9',
 ![Sneaky](media/sneaky_flag.png)
 
 ## December 14th
-TODO: this
+Today was yet another e-learning module in slede8.
+```
+; Føde består av et ukjent antall verdier, der verdien 0x00 markerer siste verdi. (The input contains an unknown amount of values, where 0x00 marks the last one)
+; Skriv ut verdiene i motsatt rekkefølge. (Output the values in opposite order)
+
+; Eksempel: 11223344556600 => 665544332211
+; Eksempel: 0123456789abcdef00 => efcdab8967452301
+```
+To solve this, I first read all the input values, and then wrote them into DATA.
+```
+SETT r14, 0x01 ; loop incrementer
+FINN lagrdata  ; writes the address of the lagrdata data to the registers r0 and r1
+
+read:
+PLUSS r0, r14 ; increments r0, which holds the address of where we want to write
+LIK r0, r15 ; if r0 wraps around and hits 0x00 again, increment r1 (instead of going from 0xff -> 0x00, we go from 0xff -> 0x100)
+BHOPP incr1
+back:
+LES r2 ; read into r2
+LAGR r2 ; store value of r2 into address stored in r0 and r1
+ULIK r2, r15 ; keep reading until we hit 0x00 in the input
+BHOPP read
+
+incr1:
+PLUSS r1, r14
+HOPP back
+
+lagrdata:
+.DATA 0x00
+```
+We now have the entire input stored in `lagrdata`. We can now simply just read `lagrdata` backwards, and print out the values as we go. The final code looks like this:
+```
+SETT r14, 0x01 ; loop incrementer
+SETT r12, 0xff
+FINN lagrdata  ; writes the address of the lagrdata data to the registers r0 and r1
+
+read:
+PLUSS r0, r14 ; increments r0, which holds the address of where we want to write
+LIK r0, r15 ; if r0 wraps around and hits 0x00 again, increment r1 (instead of going from 0xff -> 0x00, we go from 0xff -> 0x100)
+BHOPP incr1
+back:
+LES r2 ; read into r2
+LAGR r2 ; store value of r2 into address stored in r0 and r1
+ULIK r2, r15 ; keep reading until we hit 0x00 in the input
+BHOPP read
+
+; writing does the exact opposite of reading
+write:
+MINUS r0, r14
+LIK r0, r12
+BHOPP decr1
+back2:
+LAST r4
+LIK r4, r15
+BHOPP stop
+SKRIV r4
+HOPP write
+
+stop:
+STOPP
+
+incr1:
+PLUSS r1, r14
+HOPP back
+
+decr1:
+MINUS r1, r14
+SETT r0, 0xff
+HOPP back2
+
+lagrdata:
+.DATA 0x00
+```
+If we submit this code to the server, we get the flag: `PST{InReverseCountryEverythingIsPossible}`
 
 ## December 15th
 This challenge was very similar to the one on December 7th. Once again we received a complex16u file, this time titled `data2.complex16u`. After opening it in URH I spent some time clicking around, but it seemed that no matter what I did, the binary representation of the signal was nonsense. After a while of clicking I found the `Decoding` tab (under Edit). I pasted in the binary string URH gave me for the signal, and tried all of the different decoding methods. `Manchester II` decoding gave the flag: `PST{m4nch3st3r_3nc0d1ng_1s_4_l0t_0f_fun!}`.
