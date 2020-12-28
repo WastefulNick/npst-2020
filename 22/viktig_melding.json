@@ -1,0 +1,6 @@
+{
+	"algorithm": 	"AES-128-ECB",
+	"library": 		"TINYAES128C",
+	"platform": 	"STM32F3",
+	"ciphertext": 	"44f23b820d2240177475c36842137ca1a84de5664f6a10f9a8b2d551704cf0d078028ab2aaccf5a179a404c2b7b2e6685291fa3db038facd111484f97d54f1f6"
+}

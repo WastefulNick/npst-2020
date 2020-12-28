@@ -11,7 +11,7 @@ On the first day we receive an email on the website with a verification code `RU
 On the second day we received a zip folder confiscated from the secret agent Pen Gwyn. Inside the folder was a MID file, along with a 7z archive named `private`. Solving this included some trial and error, but in the end what had to be done was getting the integer values of the notes in the file, and converting these integers to ASCII. 
 There were multiple ways to do this, some people simply opened the file in Notepad, manually removed garbage data, and saw the flag. I personally solved this by using the Python library mido:
 
-```
+```py
 from mido import MidiFile
 
 out = ''
@@ -45,7 +45,7 @@ After a bit of squinting, I was able to make out the flag `PST{HuskMeteren}`.
 On this day we were told to find some info about Easter, and were told to find the sum of all values in the column Maaltall between 2020 and 2040. Included was a zip-file, with 4 SQL files and a .csv file. The .csv file, seemingly generated from the sql files, had a column for maaltall, but it was missing a few years in the period 2020-2040. I have close to no prior experience with SQL, but it looked like they generated maaltall reports for a given year. The file `dbo.FunctionPaaskeAften.sql` was the most interesting one, as it returned the variable `@paaskeaften`, which was then converted to an INT: `SELECT @maaltall = CONVERT(INT, @paaskeaften);`
 
 Snippet from `dbo.FunctionPaaskeAften.sql`
-```
+```sql
 --- Calculation steps:
 SELECT @a=@aar%19, @b=FLOOR(1.0*@aar/100), @c=@aar%100;
 SELECT @d=FLOOR(1.0*@b/4), @e=@b%4, @f=FLOOR((8.0+@b)/25);
@@ -60,7 +60,7 @@ SELECT @paaskeaften = CONVERT(DATETIME, @easterday) - 1;
 ```
 
 Not having enough experience with SQL to be able to run this, I simply rewrote it in Python. Even though it isn't the prettiest solution, it was quick, simple, and gave results.
-```
+```py
 def calculate_pask(aar): # Takes year as input
     a = aar % 19
     b = floor(1.0*aar/100)
@@ -85,7 +85,7 @@ for x in range(2020, 2041):
 This code would however only return the date of paaskeaften (easter evening), I still had to convert the date to an integer to get the maaltall. Having no clue about how the conversion worked, and not having the time to learn, I did the creative solution of using [W3 School's "Try it yourself" editor](https://www.w3schools.com/SQL/trysqlserver.asp?filename=trysql_func_sqlserver_convert) to run the SQl. Example: `SELECT CONVERT(int, CONVERT(DATETIME, '2040-03-31'));`.
 
 I then manually fixed the .csv file, and made a short script to print the sum of all the maaltall values.
-```
+```py
 with open('DatoPaaskeMODIFIED.csv', 'r') as f:
     lines = f.readlines()
 
@@ -100,7 +100,7 @@ Running this code with the proper Maaltall values for all years would print the 
 ## December 5th
 In our email today there was a file titled log.csv, seemingly containing password change requests for all workers. The email told us that there were reports of people being unable to log in, and we had to search through the ~5100 line file to see if we were able to find anything out of the ordinary. I did some experimenting by parsing the data in different ways using Python, and I kept doing this until I noticed something interesting. What gave me results was creating a Python script that printed out all the unique names, and how many times they occured in the log.
 
-```
+```py
 from urllib.parse import unquote
 
 log = open('log.csv', 'r', encoding='utf-16')
@@ -201,7 +201,7 @@ Running the last command in the shell would print out a long string, something a
 value uppercase : 0
 ```
 I then copy-pasted this long string into a text file called `shell_out.txt`, and then created an ugly Python script using regex to parse it.
-```
+```py
 import string
 import re
 
@@ -236,7 +236,7 @@ Today NPST had received a chat log from an SPST agent, which included a worrying
 The first thing I did was to do some simple analysis in Python. After printing out random stuff, I decided to print out how many unique emojis there are; 16. I should have understood this sooner, from the HEXMAS hint, but better late than never. On the first line were 16 emojis, so I guessed that these were the keys. 🎅=0x1, 🤶0x2, ..., 🛷=0xf.
 
 I then made a short Python script to decode the message.
-```
+```py
 hexmas = open('input.txt', 'r', encoding='utf-8').read().split('\n')
 
 lookup = hexmas[0]
@@ -330,7 +330,7 @@ Upon submitting this code, we receive the flag `PST{++AndKissesWillBeAwardedToYo
 
 ## December 11th
 In our daily mail we were told that NPST had noticed an unauthorized change to Santa's naughty and nice list. An md5 sum had been modified, but they needed our help to find out which. Attached was a zip file, `liste.zip`. In the zip file was 3 SQLite database files. The only important file was the `liste.db` file. Using [`sqlitebrowser`](https://sqlitebrowser.org/) to open the file, I saw the 2 tables `snille` (nice) and `slemme` (naughty). The files were in the format `firstname:lastname:md5hash`. I did some quick tests, and found out that the md5hash was calculated by `md5(firstnamelastname)`. Since there was a modified md5 hash, it would be easy to enumerate every line in the file, and check if the md5hash actually matched the md5 of the first, lastname. I exported the files as .csv files, and I wrote a short Python script to check if all md5 hashes were correct.
-```
+```py
 from hashlib import md5
 
 with open('snille.csv', 'r', encoding='utf-8') as f:
@@ -401,7 +401,7 @@ return:
 RETUR                                   ;0x6e
 ```
 By looking at the code, our goal was to jump to the address 0x32, which would then print `Korrekt!` (Correct!). On line 0x28 it checked if the register `r12`'s value was 0x00. So to get print out the `correct_string` we had to keep r12 to 0x00. r12 was only modified on line 0x1a, where it was ORed with r2. For r12 to be 0x00, r2 had to also be 0x00. For r2 to be 0x00, we have to look at the line above, where r2 is XORed with r3. One of the properties of XOR, is that if you XOR a value with itself, it will always become 0. Our current goal was then to get r2 to be the same as r3. r2's value was determined by the feed input XORed with r7. We then had the equation: x ^ r7 = r3. Where x is the feed (r2). I could have implemented the entire `decrypt_loop` in Python, but I was too tired to do this. Instead I wrote a short Python script to find `x` if you knew r7 and r3.
-```
+```py
 r3 = ''
 r7 = ''
 
@@ -417,7 +417,7 @@ I then proceeded to painstakingly find r3 and r7 for all of the 26 feed bytes by
 
 ## December 13th
 NPST had received a message over fax, but no one in the office understood the message. It appeared to be hex-encoded, but hex-decoding it didnt give anything meaningful. Included was the file `melding.txt`. At first glance the challenge reminded me of one they had in last year's CTF, titled `Linebreak it till you make it`. It was a file with 0's and 1's, and when resized the correct way and ctrl + f'ing for 1, you would see the flag. This did however not work for this challenge, I tried ctrl + f for all hex values, with no result. I then spent probably hours reading up on fax, and trying to somehow convert the data to a fax document or similar. After a long break, I came back to the challenge. I looked at the output from a Python script I made at the start:
-```
+```py
 unique = {}
 
 f = open('melding.txt', 'r').read()
@@ -447,7 +447,7 @@ TODO: this
 
 ## December 17th
 This day was quite similar to the 8th, but of course a tiny bit harder. We were told that they had been listening to an SPST's agent's phone, and that the network operator had sent data according to ETSI232-1. [ETSI232-1 is a standard for Lawful Interception (LI); Handover Interface and Service-Specific Details (SSD) for IP delivery;](https://www.etsi.org/deliver/etsi_ts/102200_102299/10223201/03.20.01_60/ts_10223201v032001p.pdf). Included were 2 files, `ETSI232-1.txt` (an ASN.1 schema) and `data.b64.txt` (base64 encoded data). This time I actually knew how asn1tools worked, and I was able to make it properly decode the data.b64 according to the schema. I used this Pyhthon script to decode the conversation:
-```
+```py
 import asn1tools
 from base64 import b64decode
 
@@ -480,7 +480,7 @@ Data would then be a dict of the decoded data. The interesting part of the dict 
 I assumed that the the hex strings were the messages, but they didn't decode into ASCII. I did some experimenting in [CyberChef](https://gchq.github.io/CyberChef/), and using the XOR bruteforce, I noticed that XORing every character of the hex decoded string with 0x24 would give what I was looking for. [Example](https://gchq.github.io/CyberChef/#recipe=From_Hex('Auto')XOR_Brute_Force(1,100,0,'Standard',false,true,false,'')&input=NkM0NTU2MDQ0MDUxMDQ0MjUxNEE0QTQxNTAwNDRBNEI0MTA0NDNFNzlDNUQxQg).
 
 I then made a short Python script that did this for every message.
-```
+```py
 import asn1tools
 from base64 import b64decode
 
@@ -540,7 +540,7 @@ Sigurd: (4, 92238313255798153685411820307476126709217057730967458760695611544913
 Adrian: (5, 1361613195680829887737031633110361870469394661742852962657887598996346260195423498636393760259000241699)
 
 Using a well-crafted search, I was quickly able to find out that the method used was probably [`Shamir's Secret Sharing`](https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing). Luckily there was a [Python example on the Wikipedia page](https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing#Python_example), so I copied this and modified it a bit, and made it spit out the flag.
-```
+```py
 import codecs
 
 def _extended_gcd(a, b):
@@ -612,7 +612,7 @@ Key logs can be written by NSS so that external programs can decrypt TLS connect
 
 I imported the full text file into Wireshark, and when I now looked at the protocol hierarchy of the extracted pcapng file, I saw some HTTP requests, making up 0.1% of total packets. The request was for a file on the local network; `secretdoc.pdf`. Saving and opening this PDF revealed the flag; `PST{5h4dy53rv3r}`
 
-## December 21th
+## December 21st
 Today's challenge was a text file titled `generasjoner.txt` `(generations.txt)`. The file had 10 lines, in the format `gen(linenum):` followed by binary.
 ```
 gen0:01010000010100110101010001111011
@@ -629,7 +629,7 @@ After this I however got totally stuck, and no matter how many hours I put into 
 ![Rule 86](media/rule86.jpg)
 
 Knowing the rules of the text file we could easily use gen1 to finish gen0. gen1 was the output, and we knew what input generated different output. I wrote this short Python script to read gen1, and fill in gen0 accordingly.
-```
+```py
 gen0 = '01'
 gen1 = '010110001101110101010110100010010001111101011101000100110101110100011111100111011101101100110111101001100101110101000001001101011101110100100110101001101001010100100110010101101001111111000001110101101001010100010110010110001010010111010110100101100101100010100011100111011100000100000101'
 
@@ -655,3 +655,463 @@ for x in range(len(gen0)-1, len(gen1)):
 print(''.join(chr(int(gen0[i:i+8], 2)) for i in range(0, len(gen0), 8))) # print answer in ASCII
 ```
 The output of this code is the flag; `PST{r3v3rs1bl3_c3llul4r_4ut0m4t0ns?}`
+
+## December 22nd
+Today there was yet anoter problem up North. The only station for decryption of wishlists had stopped working! A wishlist was received from a child high up on the list of nice children, but they were unable to decrypt it without the decryption station. An elf had tried to get the software out of an encryption station to get the encryption key, but with no luck - the microcontroller was read-locked. As a sidetrack an elf connected an oscilloscope, an attempted to read the power usage of the microcontroller while they sent in 50 wishlists with random data. The elf was however unable to find any connection between the power usage and the input, it was up to us to see if we could solve this. Included in the task were 3 files; `viktig_melding.json` `import_message.json` which held the AES info, `ønskelister.npy` `(wishlists.npy)` a Numpy array file which held the inputted wishlist data and the last file `strømforbruk.npy` `(power usage.npy)` which contained info about the microcontrollers power usage.
+
+To get the AES encryption key we had to perform a [side-channel attack](https://en.wikipedia.org/wiki/Side-channel_attack), more specifically a [power monitoring attack](https://en.wikipedia.org/wiki/Power_analysis). I would recommend watching [this YouTube video by Colin O'Flynn](https://www.youtube.com/watch?v=OlX-p4AGhWs) to better understand the theory behind the attack. I spent quite a few hours learning about power-analysis, but in the end I ended up solving it by finding a pretty much [perfectly copy-pasteable Python script](https://wiki.newae.com/V4:Tutorial_B6_Breaking_AES_(Manual_CPA_Attack)) that did everything for me. All I did was input my own 2 Numpy array files, and it gave me the most likely key; `9dedc4e592b7c01d43667efaa74eb6e5`. I then decrypted the AES using the key, and I got the flag: `PST{1n_4_w0rld_th4t_sh0uts_4ll_1_n33d_1s_4_wh1sp3r!}`.
+
+## December 23rd
+An anonymous Christmas card had been placed in the mailbox at Santa's Workshop, and we were given the task of seeing if we could find anything interesting about it. Included in the mail was the Christmas card.
+
+![Christmas card](23/julekort.png)
+
+I uploaded the image to the website [StegOnline](https://stegonline.georgeom.net/image), and in the red bitplane I saw a QR code that scanned to `So close, yet so far...`. In the green bitplane there was a QR code, but it's finder patterns were replaced with a checkerboard pattern. Finally, in the blue bitplane there was a checkerboard pattern. I spent an incredibly long time trying to fix the QR code in the green bitplane, but no matter what I did, it failed to scan. After a long break I finally looked back at the actual Christmas card, and I noticed that the Christmas ornaments were a hint. There were 3 colored balls; red, green and blue, split by ornaments that resemble the XOR symbol: ⊕. `R ⊕ G ⊕ B`. I then realized I had to XOR all the 3 images together. I then used PIL to do this.
+```py
+from PIL import ImageChops, Image
+
+r = Image.open('r.png').convert('1')
+g = Image.open('g.png').convert('1')
+b = Image.open('b.png').convert('1')
+
+xored = ImageChops.logical_xor(r, g)
+xored = ImageChops.logical_xor(xored, b)
+xored.show()
+```
+Running this code will show a QR code, which holds the flag: `PST{4ll_th3s3_d3l1c10us_l4y3rs}`
+
+## December 24th
+A few days ago we received a message telling us that Rudolph had Covid-19, and that the sled test-flight was a complete disaster. Therefore we were once again tasked with saving Christmas. This time by writing an autopilot for Santa's sled, in slede8 assembly. On the website there was a new program, a sled simulator. Our goal was to write a slede8 program that would always safely land Santa's sled, no matter the conditions. GIF of the sled simulator with the default slede8 program loaded:
+![Default Slede Simulator](media/sled_sim.gif)
+
+Of course in true NPST style, everything was overcomplicated. The first step of solving this challenge was to read and understand the source code of the simulator, as we didn't have any documentation or anything else. I've included the source code in the folder `24`. Very shortly explained; the simulation sent both the current and the last X/Y coordinates of the sled (ASN1 encoded) as input to the slede8 program. It then expected an output, which it would use to enable/disable the 3 thrusters on the sled  (left, right, vertical).
+
+In the slede8 program I first had to properly parse the input data. This proved a bit difficult, as the input was ASN1 encoded. I copied the input-encoding part of the simulation source, and used this to generate input in the same way the simulator would.
+```js
+var asn1js_1 = require("asn1js");
+var width = 255;
+var height = 255;
+var target = {
+    x: ~~(width / 2) - 20,
+    y: height - 25,
+    w: 40,
+    h: 25
+};
+
+var encodePosition = function (pos) {
+    var sequence = new asn1js_1.Sequence();
+    sequence.valueBlock.value.push(new asn1js_1.Integer({ value: pos.x & 0xff }));
+    sequence.valueBlock.value.push(new asn1js_1.Integer({ value: pos.y & 0xff }));
+    return sequence;
+}
+
+var encodeTarget = function () {
+    var sequence = new asn1js_1.Sequence();
+    sequence.valueBlock.value.push(encodePosition({ x: target.x, y: target.y }));
+    sequence.valueBlock.value.push(encodePosition({ x: target.x + target.w, y: target.y + target.h }));
+    return sequence;
+}
+
+var encodeFøde = function (input) {
+    var sequence = new asn1js_1.Sequence();
+    sequence.valueBlock.value.push(encodePosition(input.pos)); // currPos
+    sequence.valueBlock.value.push(encodePosition(input.prevPos)); // prevPosition
+    sequence.valueBlock.value.push(encodeTarget()); // target
+    return sequence.toBER();
+}
+
+var prevPos = { x: 250, y: 251 };
+var autoPilotInput = { prevPos: prevPos, pos: { x: 252, y: 253 }, target: target };
+
+let føde = encodeFøde(autoPilotInput);
+console.log(føde);
+```
+I could then manually input different positions, and see what kind of input the slede8 program would receive from the simulator. Given the values in the program above (`250` in base10 is `fa` in base16), it would give this as input: `30 29 30 08 02 02 00 fc 02 02 00 fd 30 08 02 02 00 fa 02 02 00 fb 30 13 30 07 02 01 6b 02 02 00 e6 30 08 02 02 00 93 02 02 00 ff`. Here we can see the values `fa` (`prevPos.x`), `fb` (`prevPos.y`), `fc` (`pos.x`) and `fd` (`pos.y`). I then implemented input reading into the slede8 program, by simply getting the values from their hardcoded position on the input. Howver this turned out to not always work, as the position of the data varied depending on the value of the data. I did however notice a pattern, and in the end I managed to properly read parse the input.
+```
+SETT r3, 0x00  ; loop counter
+SETT r14, 0x01 ; loop increment
+SETT r10, 0x08 ; default position of pos.x in ASN1 input
+SETT r11, 0x0c ; default position of pos.y in ASN1 input
+SETT r12, 0x12 ; default position of prevPos.x in ASN1 input
+SETT r13, 0x16 ; default position of prevPos.y in ASN1 input
+SETT r9, 0x04 ; the 4th byte of the input shows the position of the pos data
+SETT r8, 0x0e ; the 16th byte of the input shows the position of the prevpos data
+
+
+; read input and write pos vars
+read:
+LES r2
+PLUSS r3, r14
+
+LIK r3, r9 ; if we're at the 4th position of the input, jump to fix
+BHOPP fixpos
+
+LIK r3, r8 ; if we're at the 16th position of the input, jump to fix
+BHOPP fixprevpos
+
+LIK r3, r10
+BHOPP posx
+
+LIK r3, r11
+BHOPP posy
+
+LIK r3, r12
+BHOPP prevposx
+
+LIK r3, r13
+BHOPP prevposy
+HOPP read
+
+
+fixpos:
+SETT r15, 0x08 ; default value for the location of the pos
+SEL r2, r15 ; if the value is the greather or equal, it will jump back without doing anything
+BHOPP read
+MINUS r10, r14 ; if the value is less than 0x08, the position of all the positions is one less, decrement all of them
+MINUS r11, r14
+MINUS r12, r14
+MINUS r13, r14
+MINUS r8, r14
+
+SETT r15, 0x06 ; if the value is 0x06, the position of all the positions is one less, decrement all of them (once more)
+SE r2, r15
+BHOPP read
+MINUS r11, r14
+MINUS r12, r14
+MINUS r13, r14
+MINUS r8, r14
+HOPP read
+
+fixprevpos:
+SETT r15, 0x08 ; same thing as fixpos
+SEL r2, r15
+BHOPP read
+MINUS r12, r14
+MINUS r13, r14
+
+SETT r15, 0x06
+SE r2, r15
+BHOPP read
+MINUS r12, r14
+MINUS r13, r14
+HOPP read
+
+
+
+; write pos varss
+posx:
+SETT r4, r2
+HOPP read
+
+posy:
+SETT r5, r2
+HOPP read
+
+prevposx:
+SETT r6, r2
+HOPP read
+
+prevposy:
+SETT r7, r2
+HOPP calculate
+```
+So now we have implemented the first part of the auto-pilot; parsing the input. We now have to use the position data we receive to be able to safely land the sled at the target, without it moving too fast. There are so many different ways to do this, and for the most part it was purely trial and error.
+```
+; thrust control (these functions are only called from the calculation function below)
+ascend:
+SETT r13, 0xfa
+HOPP write
+
+flyleft:
+SETT r11, 0x00
+SETT r12, 0xfa
+HOPP ythrust
+
+flyright:
+SETT r11, 0xfa
+SETT r12, 0x00
+HOPP ythrust
+
+steadyxontarget:
+SE r4, r10 ; if it's outside the target jump back
+BHOPP xthrustback
+; runs only if the sled is within the x-coords of the target. used to keep the sled steady and slowing it down when it's above the target
+SE r4, r6 ; if the current position is further right than the last position, fly back towards the last position
+BHOPP flyleft
+SE r6, r4 
+BHOPP flyright
+HOPP ythrust ; if in the same location, the x coordinates are fine and don't need further adjusting
+
+flytotarget:
+SETT r8, 110 ; approximate X position of target
+SE r4, r8 ; if the x position of the sled is greater than 110, fly towards the left to reach the target
+BHOPP flyleft
+MEL r4, r8 ; if x < 110, fly right towards target
+BHOPP flyright
+
+
+
+; calculate thrust
+calculate:
+; thrusters are off if their value is 0x00, otherwise they are on
+; r11 = left thruster 
+; r12 = right thruster
+; r13 = vertical thruster
+
+; r4 = pos.x
+; r5 = pos.y
+; r6 = prevPos.x
+; r7 = prevPos.y
+
+SETT r13, 0x00
+
+SETT r9, 0x64  ; approximate left-most coordinate of target
+SETT r10, 0x8f ; approximate right-most coordinate of target
+
+; xthrust
+LIK r4, r6 ; sometimes it would get stuck, so if the current X = the last X then force the sled to move towards the target
+BHOPP flytotarget
+
+SE r4, r9 ; if the sled is to the right of the target
+BHOPP steadyxontarget
+
+; if the sled is not above the target, fly towards it
+xthrustback:
+ME r4, r9
+BHOPP flyright
+SE r4, r10
+BHOPP flyleft
+
+; if no functions are run for the x coordinate; don't move
+SETT r11, 0x00
+SETT r12, 0x00
+
+ythrust:
+SETT r8, 228 ; y-coordinate of target is 230. so if sled is right above target, enable vertical thrusters for slow and safe landing
+SEL r5, r8
+BHOPP ascend
+
+SE r5, r7 ; if pos.x > prevPos.x then ascend
+BHOPP ascend
+```
+Now all we need to do is write the output. The simulation expects the output to match this regex: `/^30090101([0-9a-f]{2})0101([0-9a-f]{2})0101([0-9a-f]{2})$/`, where the 3 regex groups are the left, right and vertical thruster, respectively. Basically we just output the hardcoded values, along with out thruster values.
+```
+; write output
+write:
+SETT r15, 0x30
+SKRIV r15
+SETT r15, 0x09
+SKRIV r15
+SETT r15, 0x01
+SKRIV r15
+SKRIV r15
+
+SKRIV r11 ; lThrust
+
+SETT r15, 0x01 
+SKRIV r15
+SKRIV r15
+
+SKRIV r12 ; rThrust
+
+SKRIV r15
+SKRIV r15
+
+SKRIV r13 ; vThrust
+```
+If we now combine all this code, we get the final assembly:
+```
+SETT r3, 0x00  ; loop counter
+SETT r14, 0x01 ; loop increment
+SETT r10, 0x08 ; default position of pos.x in ASN1 input
+SETT r11, 0x0c ; default position of pos.y in ASN1 input
+SETT r12, 0x12 ; default position of prevPos.x in ASN1 input
+SETT r13, 0x16 ; default position of prevPos.y in ASN1 input
+SETT r9, 0x04 ; the 4th byte of the input shows the position of the pos data
+SETT r8, 0x0e ; the 16th byte of the input shows the position of the prevpos data
+
+
+; read input and write pos vars
+read:
+LES r2
+PLUSS r3, r14
+
+LIK r3, r9 ; if we're at the 4th position of the input, jump to fix
+BHOPP fixpos
+
+LIK r3, r8 ; if we're at the 16th position of the input, jump to fix
+BHOPP fixprevpos
+
+LIK r3, r10
+BHOPP posx
+
+LIK r3, r11
+BHOPP posy
+
+LIK r3, r12
+BHOPP prevposx
+
+LIK r3, r13
+BHOPP prevposy
+HOPP read
+
+
+fixpos:
+SETT r15, 0x08 ; default value for the location of the pos
+SEL r2, r15 ; if the value is the greather or equal, it will jump back without doing anything
+BHOPP read
+MINUS r10, r14 ; if the value is less than 0x08, the position of all the positions is one less, decrement all of them
+MINUS r11, r14
+MINUS r12, r14
+MINUS r13, r14
+MINUS r8, r14
+
+SETT r15, 0x06 ; if the value is 0x06, the position of all the positions is one less, decrement all of them (once more)
+SE r2, r15
+BHOPP read
+MINUS r11, r14
+MINUS r12, r14
+MINUS r13, r14
+MINUS r8, r14
+HOPP read
+
+fixprevpos:
+SETT r15, 0x08 ; same thing as fixpos
+SEL r2, r15
+BHOPP read
+MINUS r12, r14
+MINUS r13, r14
+
+SETT r15, 0x06
+SE r2, r15
+BHOPP read
+MINUS r12, r14
+MINUS r13, r14
+HOPP read
+
+
+
+; write pos varss
+posx:
+SETT r4, r2
+HOPP read
+
+posy:
+SETT r5, r2
+HOPP read
+
+prevposx:
+SETT r6, r2
+HOPP read
+
+prevposy:
+SETT r7, r2
+HOPP calculate
+
+
+
+; thrust control (these functions are only called from the calculation function below)
+ascend:
+SETT r13, 0xfa
+HOPP write
+
+flyleft:
+SETT r11, 0x00
+SETT r12, 0xfa
+HOPP ythrust
+
+flyright:
+SETT r11, 0xfa
+SETT r12, 0x00
+HOPP ythrust
+
+steadyxontarget:
+SE r4, r10 ; if it's outside the target jump back
+BHOPP xthrustback
+; runs only if the sled is within the x-coords of the target. used to keep the sled steady and slowing it down when it's above the target
+SE r4, r6 ; if the current position is further right than the last position, fly back towards the last position
+BHOPP flyleft
+SE r6, r4 
+BHOPP flyright
+HOPP ythrust ; if in the same location, the x coordinates are fine and don't need further adjusting
+
+flytotarget:
+SETT r8, 110 ; approximate X position of target
+SE r4, r8 ; if the x position of the sled is greater than 110, fly towards the left to reach the target
+BHOPP flyleft
+MEL r4, r8 ; if x < 110, fly right towards target
+BHOPP flyright
+
+
+
+; calculate thrust
+calculate:
+; thrusters are off if their value is 0x00, otherwise they are on
+; r11 = left thruster
+; r12 = right thruster
+; r13 = vertical thruster
+
+; r4 = pos.x
+; r5 = pos.y
+; r6 = prevPos.x
+; r7 = prevPos.y
+
+SETT r13, 0x00
+
+SETT r9, 0x64  ; approximate left-most coordinate of target
+SETT r10, 0x8f ; approximate right-most coordinate of target
+
+; xthrust
+LIK r4, r6 ; sometimes it would get stuck, so if the current X = the last X then force the sled to move towards the target
+BHOPP flytotarget
+
+SE r4, r9 ; if the sled is to the right of the target
+BHOPP steadyxontarget
+
+; if the sled is not above the target, fly towards it
+xthrustback:
+ME r4, r9
+BHOPP flyright
+SE r4, r10
+BHOPP flyleft
+
+; if no functions are run for the x coordinate; don't move
+SETT r11, 0x00
+SETT r12, 0x00
+
+ythrust:
+SETT r8, 228 ; y-coordinate of target is 230. so if sled is right above target, enable vertical thrusters for slow and safe landing
+SEL r5, r8
+BHOPP ascend
+
+SE r5, r7 ; if pos.x > prevPos.x then ascend
+BHOPP ascend
+
+
+
+; write output
+write:
+; hard coded values are required. simulator expects output that matches this regex: /^30090101([0-9a-f]{2})0101([0-9a-f]{2})0101([0-9a-f]{2})$/
+SETT r15, 0x30
+SKRIV r15
+SETT r15, 0x09
+SKRIV r15
+SETT r15, 0x01
+SKRIV r15
+SKRIV r15
+
+SKRIV r11 ; lThrust
+
+SETT r15, 0x01 
+SKRIV r15
+SKRIV r15
+
+SKRIV r12 ; rThrust
+
+SKRIV r15
+SKRIV r15
+
+SKRIV r13 ; vThrust
+```
+
+If we use the slede8 website to assemble the code, and then upload it to the simulation, we can finally test it. After successfully landing we can click on the `Redd julen` `(Save Christmas)` button. The servers runs our program through multiple tests, with different seeds, and if it succeeds all of them we get [a link](npst.no/temmelig-hemmelig/3545c4054b7fb20d387bbdd1f3d2aec8). The link leads to a website that congratules us for saving Christmas, and also gives us the flag: `PST{MerryChristmasYaFilthyAlgorithm}`. 
