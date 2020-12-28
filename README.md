@@ -798,7 +798,7 @@ HOPP read
 
 
 
-; write pos varss
+; write pos vars
 posx:
 SETT r4, r2
 HOPP read
@@ -991,7 +991,7 @@ HOPP read
 
 
 
-; write pos varss
+; write pos vars
 posx:
 SETT r4, r2
 HOPP read
@@ -1114,4 +1114,8 @@ SKRIV r15
 SKRIV r13 ; vThrust
 ```
 
-If we use the slede8 website to assemble the code, and then upload it to the simulation, we can finally test it. After successfully landing we can click on the `Redd julen` `(Save Christmas)` button. The servers runs our program through multiple tests, with different seeds, and if it succeeds all of them we get [a link](npst.no/temmelig-hemmelig/3545c4054b7fb20d387bbdd1f3d2aec8). The link leads to a website that congratules us for saving Christmas, and also gives us the flag: `PST{MerryChristmasYaFilthyAlgorithm}`. 
+If we use the slede8 website to assemble the code, and then upload it to the simulation, we can finally test it. After successfully landing we can click on the `Redd julen` `(Save Christmas)` button. 
+
+![Sled sim with working auto-pilot](media/sim_working.gif)
+
+The servers runs our program through multiple tests, with different seeds, and if it succeeds all of them we get [a link](https://npst.no/temmelig-hemmelig/3545c4054b7fb20d387bbdd1f3d2aec8/). The link leads to a website that congratules us for saving Christmas, and also gives us the flag: `PST{MerryChristmasYaFilthyAlgorithm}`. 
