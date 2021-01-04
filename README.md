@@ -6,6 +6,10 @@ I will also be presenting how I solved the challenges, and not the fine-polished
 
 I've also written everything without any form of spell check, and with minimal proofreading. Expect quite a few errors. 
 
+Some general info: There was one task everyday (24 days), along with 11 eggs/distinctions which were hidden challenges. In total one could get 240 points and 11 distinctions. The writeup for the eggs are at the bottom. 
+
+# Challenges
+
 ## December 1st
 On the first day we receive an email on the website with a verification code `RUV{JgkJqPåGtFgvLwnKilgp}`. Our supervisor had however dropped this code in their salad, so we had to decrypt it. The code can easily be recognized to be caesaer cipher, as hinted by it being dropped in the salad. Upon decrypting it with a shift of 2, you received the first flag: `PST{HeiHoNåErDetJulIgjen}`
 
@@ -331,18 +335,18 @@ HOPP under100
 Upon submitting this code, we receive the flag `PST{++AndKissesWillBeAwardedToYou}`.
 
 ## December 11th
-In our daily mail we were told that NPST had noticed an unauthorized change to Santa's naughty and nice list. An md5 sum had been modified, but they needed our help to find out which. Attached was a zip file, `liste.zip`. In the zip file was 3 SQLite database files. The only important file was the `liste.db` file. Using [`sqlitebrowser`](https://sqlitebrowser.org/) to open the file, I saw the 2 tables `snille` (nice) and `slemme` (naughty). The files were in the format `firstname:lastname:md5hash`. I did some quick tests, and found out that the md5hash was calculated by `md5(firstnamelastname)`. Since there was a modified md5 hash, it would be easy to enumerate every line in the file, and check if the md5hash actually matched the md5 of the first, lastname. I exported the files as .csv files, and I wrote a short Python script to check if all md5 hashes were correct.
+In our daily mail we were told that NPST had noticed an unauthorized change to Santa's naughty and nice list. An md5 sum had been modified, but they needed our help to find out which. Attached was a zip file, `liste.zip`. In the zip file were 3 SQLite database files. The only important file was the `liste.db` file. Using [`sqlitebrowser`](https://sqlitebrowser.org/) to open the file, I saw the 2 tables `snille` (nice) and `slemme` (naughty). The files were in the format `firstname:lastname:md5hash`. I did some quick tests, and found out that the md5hash was calculated by `md5(firstnamelastname)`. Since there was a modified md5 hash it would be easy to enumerate every line in the file and check if the md5hash actually matched md5(firstnamelastname). I exported the files as .csv files, and I wrote a short Python script to check if all md5 hashes were correct.
 ```py
 from hashlib import md5
 
 with open('snille.csv', 'r', encoding='utf-8') as f:
     for line in f.readlines()[1:]:
         rows = line.strip().split(';')
-        hashed = md5(f'{rows[0]}{rows[1]}'.encode()).hexdigest()
-        if hashed != rows[-1]:
+        hashed = md5(f'{rows[0]}{rows[1]}'.encode()).hexdigest() # rows[0] and rows[1] are first and last name respectively
+        if hashed != rows[-1]: # the last row is the md5hash, if the md5hash in the database doesn't match the format, something is fishy
             print(f'PST{{{rows[2]}}}')
 ```
-In the nice list, there was 1 md5 that didn't match the md5 of first, last. This hash, wrapped in `PST{}` was the flag: `PST{49422712408d5409a3e40945204314e6}` 
+In the nice list, there was 1 md5hash that didn't match md5(firstnamelastname). This hash wrapped in `PST{}` was the flag: `PST{49422712408d5409a3e40945204314e6}` 
 
 ## December 12th
 SPST had allegedly posted some s8asm code on their GitHub, which was luckily saved by our colleague before it was deleted. Attached was the file `program.s8`, which was assembled Slede8 code. The first step was to disassemble the file into working s8asm. I had already created an s8 disassembler previously (which I will not be sharing). Slede8 doesn't have a lot of opcodes, so it's very simple to create a disassembler. My disassembler gave me this code as output (manually changed function names):
@@ -418,7 +422,7 @@ for x in range(0, 255):
 I then proceeded to painstakingly find r3 and r7 for all of the 26 feed bytes by looking at the register and manually filling it out in the Python script. After torturing myself for what felt like an eternity, I finally got the complete feed: `5053547b666962306e616363315f306e6574316d335f7034647d` which when ran with the program printed `Korrekt!`. I then converted the hex to ASCII, and got the flag: `PST{fib0nacc1_0net1m3_p4d}`.
 
 ## December 13th
-NPST had received a message over fax, but no one in the office understood the message. It appeared to be hex-encoded, but hex-decoding it didnt give anything meaningful. Included was the file `melding.txt`. At first glance the challenge reminded me of one they had in last year's CTF, titled `Linebreak it till you make it`. It was a file with 0's and 1's, and when resized the correct way and ctrl + f'ing for 1, you would see the flag. This did however not work for this challenge, I tried ctrl + f for all hex values, with no result. I then spent probably hours reading up on fax, and trying to somehow convert the data to a fax document or similar. After a long break, I came back to the challenge. I looked at the output from a Python script I made at the start:
+NPST had received a message over fax, but no one in the office understood the message. It appeared to be hex-encoded, but hex-decoding it didnt give anything meaningful. Included was the file `melding.txt`. At first glance the challenge reminded me of one they had in last year's CTF, titled `Linebreak it till you make it`. It was a file with 0's and 1's, and when resized the correct way and ctrl + f'ing for 1, you would see the flag. This did however not work for this challenge, I tried ctrl + f for all hex values, with no result. I then spent probably hours reading up on fax, and trying to somehow convert the data to a fax document or similar. After a long break, I came back to the challenge. I looked at the output from a Python script I made at the start, which printed the frequency of every character:
 ```py
 unique = {}
 
@@ -521,7 +525,7 @@ This challenge was very similar to the one on December 7th. Once again we receiv
 TODO: this
 
 ## December 17th
-This day was quite similar to the 8th, but of course a tiny bit harder. We were told that they had been listening to an SPST's agent's phone, and that the network operator had sent data according to ETSI232-1. [ETSI232-1 is a standard for Lawful Interception (LI); Handover Interface and Service-Specific Details (SSD) for IP delivery;](https://www.etsi.org/deliver/etsi_ts/102200_102299/10223201/03.20.01_60/ts_10223201v032001p.pdf). Included were 2 files, `ETSI232-1.txt` (an ASN.1 schema) and `data.b64.txt` (base64 encoded data). This time I actually knew how asn1tools worked, and I was able to make it properly decode the data.b64 according to the schema. I used this Pyhthon script to decode the conversation:
+This day was quite similar to the 8th, but of course a tiny bit harder. We were told that they had been listening to an SPST's agent's phone, and that the network operator had sent data according to ETSI232-1. [ETSI232-1 is a standard for Lawful Interception (LI); Handover Interface and Service-Specific Details (SSD) for IP delivery;](https://www.etsi.org/deliver/etsi_ts/102200_102299/10223201/03.20.01_60/ts_10223201v032001p.pdf). Included were 2 files, `ETSI232-1.txt` (an ASN.1 schema) and `data.b64.txt` (base64 encoded data). This time I actually knew how asn1tools worked, and I was able to make it properly decode the data.b64 according to the schema. I used this Python script to decode the conversation:
 ```py
 import asn1tools
 from base64 import b64decode
@@ -607,7 +611,7 @@ SPST has published an extremely advanced artifical intelligence on [their GitHub
 
 ![Penguin Counter](media/penguin_counter.gif)
 
-The function that counts the amount of penguins is written in slede8 assembly, and is susceptible to an overflow vulnerability. The assembly program reads the input into a 128 byte long .DATA buffer. Since it reads until it hits the end of the input, instead of reading no more than 128 bytes of input, we can input more than 128 bytes of data to overwrite and execute our own code. Heres an excerpt from the assembly.
+The function that counts the amount of penguins is written in slede8 assembly, and is susceptible to an overflow vulnerability. The assembly program reads the input into a 128 byte long .DATA buffer. Since it reads until it hits the end of the input, instead of reading no more than 128 bytes of input, we can input more than 128 bytes of data to overwrite and execute our own code. Heres the relevant part of the artifical intelligence source code.
 ```
 SETT r10, 0
 SETT r11, 1
@@ -659,7 +663,7 @@ lest_ferdig:
 RETUR
 ```
 
-It reads until there is a nullbyte in the input `LIK r2, r10`, where r2 is the current input byte and r10 is 0x00. When it hits a nullbyte, it jumps to `lest_ferdig`, which returns it to the line `TUR tell_pingviner`. We can then fill the `input_buffer` with the code we want to execute, and then overwrite the line `TUR tell_pingviner` with a jump (HOPP) to the start of the input_buffer. To be able to jump we need to know the line number of the input_buffer, I did this by bruteforcing. In the start of `input_buffer` I wrote code that simply reads out the data in line 0x06, which is the line where the flag is. Since we know that the flag data ends with 0x00, we can read until we hit this value. This is the code I write to the start of the `input_buffer`, along with their opcodes.
+It reads until there is a nullbyte in the input, `LIK r2, r10`, where r2 is the current input byte and r10 is 0x00. When it hits a nullbyte, it jumps to `lest_ferdig`, which returns it to the line `TUR tell_pingviner`. We can then fill the `input_buffer` with the code we want to execute, and then overwrite the line `TUR tell_pingviner` with a jump (HOPP) to the start of the input_buffer. To be able to jump we need to know the line number of the input_buffer, I did this by bruteforcing. In the start of `input_buffer` I wrote code that simply reads out the data in line 0x06, which is the line where the flag is. Since we know that the flag data ends with 0x00, we can read until we hit this value. This is the code I write to the start of the `input_buffer`, along with their opcodes.
 ```
 04 02   LAST r2         ; loads the value at line held in r0 into r2 (r0 is set to 0x06, the line of the flag)
 07 2a   LIK r10, r2     ; if the value in r2 is 0x00, we've read the entire flag and can stop the program.
@@ -681,7 +685,7 @@ for line_num in range(20, 40): # flag is probably between 20-40 chars long
     if len(line_num) == 1:
         line_num = '0' + line_num # shitty python thing to make sure the hex value is always 2 digits long. (01 instead of 1)
 
-    jmp = f'\n{line_num[1]}8 0{line_num[0]} \n' # opcode for jumping to the line. if the line is 35 in hex, the opcode to jump to the line will be 58 03
+    jmp = f'\n{line_num[1]}8 0{line_num[0]} \n' # opcode for jumping to the start of input_buffer. if input_buffer is at line 35 in hex, the opcode to jump to the line will be 58 03
 
     # loop in start of input_buffer
     data = '''
@@ -698,7 +702,7 @@ f9 ef
 
     # after input_buffer
     data += '0c 0c' # overwrite the line "TUR les_input" with junk data
-    data += '01 06' # this is the line we retun back to, so we execute this (SETT r0, 0x06) ()
+    data += '01 06' # this is the line we retun back to, so this line will be executed (SETT r0, 0x06)
     data += jmp     # and then we jump to the start of the loop that reads the flag
 
     input_b64 = urlsafe_b64encode(bytes.fromhex(data)).decode().replace('=', '%3D') # we then convert the data string to bytes, and base64 encode it, this is how the server expects the input
@@ -715,7 +719,7 @@ f9 ef
 The script returns the flag `PST{EveryoneAboardTheNOPESlede8}`
 
 ## December 19th
-In today's email we were explained that the elf Sigurd had created a way to split a secret into X keys. Further, the algorithm is made in such a way where only a Y amount of keys is required to get the secret. The secret password to the Christmas present vault was split into 5 (X) keys, of which 3 (Y) of them were required to open the vault. Two of the keys were given to Santa Claus, 1 key to elf Reidar, 1 key to elf Sigurd and 1 key to elf Adrian. This means that the vault can either be opened by Santa Claus + one elf, or by all 3 elves. Santa Claus has however lost both his keys, it is necessary to get back the vault's secret. We are also told that Sigurd's favorite number is `6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151` and we were given the 3 secrets held by the elves:
+In today's email we were informed that the elf Sigurd had created a way to split a secret into X keys. Further, the algorithm is made in such a way where only a Y amount of keys is required to get the secret. The secret password to the Christmas present vault was split into 5 (X) keys, of which 3 (Y) of them were required to open the vault. Two of the keys were given to Santa Claus, 1 key to elf Reidar, 1 key to elf Sigurd and 1 key to elf Adrian. This means that the vault can either be opened by Santa Claus + one elf, or by all 3 elves. Santa Claus has however lost both his keys, it is necessary to get back the vault's secret. We are also told that Sigurd's favorite number is `6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151` and we were given the 3 secrets held by the elves:
 
 Reidar: (3, 570999082059702856147787459046280784390391309763131887566210928611371012340016305879778028495709778777)
 
@@ -781,7 +785,7 @@ print(codecs.decode(hex(recovered)[2:], 'hex').decode())
 The flag is: `PST{f0rd3lt_4nsv4r_3r_d3t_b3st3_4nsv4r3t!}`
 
 ## December 20th
-Today an intruder had gained access to NPST's internal network, and it was our job to see if we could find anything of interest. We were supplied with a pcapng, titled `trafikk.pcapng`. I don't think I've ever solved a Wireshark challenge before, I've always given up on them without learning anything, but today it was going to be different. I first did some very basic searching; `find intruder wireshark log`. This lead me to [this great article](https://www.howtogeek.com/107945/how-to-identify-network-abuse-with-wireshark/) which introduced me to the `Protocol Hierarchy` under the `Statistics` tab. In there log there was a clear outlier, HTTP requests. HTTP requests were only 0.3% of the total packets, but stod for 7.4% of the total bytes. After applying `http` as a filter, I spotted a POST request to the domain `shadyserverfunction.azurewebsites.net`, which seems fairly shady. The requests included 2 files, along with a message; `Som avtalt` `(As agreed)`. The first file, titled `file1`, was a BASE64 encoded text file, which upon decoding looked something like this: 
+Today an intruder had gained access to NPST's internal network, and it was our job to see if we could find anything of interest. We were supplied with a pcapng, titled `trafikk.pcapng`. I don't think I've ever solved a Wireshark challenge before, I've always given up on them without learning anything, but today it was going to be different. I first did some very basic searching; `find intruder wireshark log`. This lead me to [this great article](https://www.howtogeek.com/107945/how-to-identify-network-abuse-with-wireshark/) which introduced me to the `Protocol Hierarchy` under the `Statistics` tab. The protocol hierarchy shows statistics on how many times a protocol appears in the file. The protocol hierarchy showed me that there was an obivous outlier; HTTP requests. HTTP requests were only 0.3% of the total packets, but stod for 7.4% of the total bytes. After applying `http` as a filter, I noticed a POST request to the domain `shadyserverfunction.azurewebsites.net`, which seems fairly shady. The requests included 2 files, along with a message; `Som avtalt` `(As agreed)`. The first file, titled `file1`, was a BASE64 encoded text file, which upon decoding looked something like this: 
 ``` 
 CLIENT_HANDSHAKE_TRAFFIC_SECRET c08e088c3a8de40c4e984836f470b57ddd9563580d77039a07902265be82c392 9a396f29df0c36bd2a48bc02230ba5e45593c8b8645d5cc095762c633ce1f40b
 SERVER_HANDSHAKE_TRAFFIC_SECRET c08e088c3a8de40c4e984836f470b57ddd9563580d77039a07902265be82c392 677422db66a266caaef05441d06f62fd8d52a2133ecafc4b9a84fdad4e58c7fb
@@ -805,10 +809,10 @@ gen2:010011010100010101010010110111111010000101000101101111010100010110100000111
 ```
 The first 3 lines of the file.
 
-Performing binary -> ASCII on gen0 reveals `PST{`, however all the other lines seem to contain garbage data. Since all but the first line are the same length, I assumed that they all held the same data, however encoded in a weird way. My first guess was that I needed to find what differed from line to line, find the encryption method, and then use it backwards to finish gen0 and get the flag. This howver proved a lot more difficult than expected. Rather early on I also discovered what seemed like upside down triangles in the text file, which proved that there was some sort of pattern going on, but I couldn't make anything out of it.
+Performing binary -> ASCII on gen0 reveals `PST{`, however all the other lines seem to contain garbage data. Since all but the first line are the same length, I assumed that they all held the same data, however encoded in a weird way. My first guess was that I needed to find what differed from line to line, find the encryption method, and then use it backwards to finish gen0 and get the flag. This however proved a lot more difficult than expected. Rather early on I also discovered what seemed like upside down triangles in the text file, which proved that there was some sort of pattern going on, but I couldn't make anything out of it.
 ![Cones in generations.txt](media/generations.png)
 
-After this I however got totally stuck, and no matter how many hours I put into it, I couldn't solve it. After a lot of rabbit-hole digging, someone told me I should read a writeup from last year. I proceeded to do so, and in one of the challenges I didn't solve last year I recognized something. In [last year's task](https://github.com/myrdyr/ctf-writeups/tree/master/npst#mystisk-julekort) there was an image of a snail which had a similar triangle pattern on it as the one I saw in the text file. The snail was connected to [Rule 30](https://en.wikipedia.org/wiki/Rule_30), a rule for [Elementary Cellular Automation](https://mathworld.wolfram.com/ElementaryCellularAutomaton.html). I would highly recommend reading the (short) info in the previous link for a better understanding. Now I finally knew what to do, I had to find out which rules the text file followed, and then apply them to finish gen0. The text file did however not follow any of the standard or well known rules, but by writing down the rules of the file, we could find out it was rule 86 (01010110 in binary) according to Wolfram's classification scheme.
+After this I however got totally stuck, and no matter how many hours I put into it, I couldn't solve it. After a lot of rabbit-hole digging, someone told me I should read a writeup from last year's NPST CTF. I proceeded to do so, and in one of the challenges that I didn't solve last year, I recognized something. In [last year's task](https://github.com/myrdyr/ctf-writeups/tree/master/npst#mystisk-julekort) there was an image of a snail which had a similar triangle pattern on it as the one I saw in the text file. The snail was connected to [Rule 30](https://en.wikipedia.org/wiki/Rule_30), a rule for [Elementary Cellular Automation](https://mathworld.wolfram.com/ElementaryCellularAutomaton.html). I would highly recommend reading the (short) info in the previous link for a better understanding. Now I finally knew what to do, I had to find out which rules the text file followed, and then apply them to finish gen0. The text file did however not follow any of the standard or well known rules, but by writing down the rules of the file, we could find out it was rule 86 (01010110 in binary) according to Wolfram's classification scheme.
 
 ![Rule 86](media/rule86.jpg)
 
@@ -865,7 +869,10 @@ xored.show()
 Running this code will show a QR code, which holds the flag: `PST{4ll_th3s3_d3l1c10us_l4y3rs}`
 
 ## December 24th
-A few days ago we received a message telling us that Rudolph had Covid-19, and that the sled test-flight was a complete disaster. Therefore we were once again tasked with saving Christmas. This time by writing an autopilot for Santa's sled, in slede8 assembly. On the website there was a new program, a sled simulator. Our goal was to write a slede8 program that would always safely land Santa's sled, no matter the conditions. GIF of the sled simulator with the default slede8 program loaded:
+A few days ago we received a message telling us that Rudolph had Covid-19, and that the sled test-flight was a complete disaster. Therefore we were once again tasked with saving Christmas. This time by writing an autopilot for Santa's sled, in slede8 assembly. On the website there was a new program, a sled simulator. Our goal was to write a slede8 program that would always safely land Santa's sled, no matter the conditions.
+
+GIF of the sled simulator with the default slede8 program loaded:
+
 ![Default Slede Simulator](media/sled_sim.gif)
 
 Of course in true NPST style, everything was overcomplicated. The first step of solving this challenge was to read and understand the source code of the simulator, as we didn't have any documentation or anything else. I've included the source code in the folder `24`. Very shortly explained; the simulation sent both the current and the last X/Y coordinates of the sled (ASN1 encoded) as input to the slede8 program. It then expected an output, which it would use to enable/disable the 3 thrusters on the sled  (left, right, vertical).
@@ -1302,4 +1309,99 @@ If we use the slede8 website to assemble the code, and then upload it to the sim
 
 ![Sled sim with working auto-pilot](media/sim_working.gif)
 
-The servers runs our program through multiple tests, with different seeds, and if it succeeds all of them we get [a link](https://npst.no/temmelig-hemmelig/3545c4054b7fb20d387bbdd1f3d2aec8/). The link leads to a website that congratules us for saving Christmas, and also gives us the flag: `PST{MerryChristmasYaFilthyAlgorithm}`. 
+The servers runs our program through multiple tests, with different seeds, and if it succeeds all of them we get [a link](https://npst.no/temmelig-hemmelig/3545c4054b7fb20d387bbdd1f3d2aec8/). The link leads to a website that congratules us for saving Christmas, and also gives us the flag: `PST{MerryChristmasYaFilthyAlgorithm}`.
+
+
+# Eggs
+## Egg 1
+The first egg was hidden in plain sight, which made it quite hard to find. A lot of people, including me, struggled to find it, as there was so many places to look for it. If you went to https://dass.npst.no/humans.txt ([humans.txt](http://humanstxt.org/) is a somewhat common file, especially for IT websites). I had looked in the humans.txt file before, but after a few days of frustration, I noticed that the website was filled with newlines. If you simply scrolled down to the bottom you found the egg. `EGG{sh4rks_d0t_txt}`
+
+## Egg 2
+Remember the mysterious `kladd.txt` from [December 3rd](https://github.com/WastefulNick/npst-2020#december-3rd)? This egg was found on the 5th, after the release of https://slede8.npst.no/. This is the contents of `kladd.txt`
+```
+🛷🛷🛷🛷🛷🛷🛷🛷 N4Igzg9grgTgxgUwMIQCYJALhAZQKIAqBABDAIwA0xADAB5kA6AdgGo4DSAkgGInlXlm+IqWpUAbAE4h7AEqcWo5gAkA8gAV1NWgCYEzZgAsAtsczMAdABEAggRvaALI4p1xAVle0ECLwA4Adi8AI3F-MTpUSjpHXzoAQy9HRMiAMy9JVMtbe214iNp3VC8AnS94sro-AGYMuNpJTzoEJtpUAtQwhJSGnWy7BzoA+tS4ENq6auCQ9Lp3aO9phPqEYqrK+jG6HUcDJnUAGQBVHBxRAUYmDnlFGGoZG6Urwj4xbQDgh4UngiPZYjAAE9UAAHCAAGwQTGYhxOZzuFy+t3u0KuBA06j2QNBEKh5meInILiewj4ZE8pEuzG4nAAcrTiCZjMwABp4A4HPD-GBlUh9Al8Cl0KlMCDGADWADdVvjOfDqswDjYcHxdkw2RyuaRaqQ1YrOOw+QIFUwAEJqTTEMFgAAu4KgqAAllBmVc5N8YCbYadzqR3CoMcQxVLVntrXaHc6zEIXr6iTHCZRKf6mLJCH89swQBQQI6mCCoDasCAyKVJPFgnBqqkpn5JI5quJxMEdAF4qka3B5sEyKh2u1EHBm2RJJJgn50KkAtQ4JIdKgdO5hhUdH4fGQaj4PDsQABfIA
+```
+The string looked a lot like the link generated when you wanted to share a slede8 file, which is exactly what it was! If you went to https://slede8.npst.no/#N4Igzg9grgTgxgUwMIQCYJALhAZQKIAqBABDAIwA0xADAB5kA6AdgGo4DSAkgGInlXlm+IqWpUAbAE4h7AEqcWo5gAkA8gAV1NWgCYEzZgAsAtsczMAdABEAggRvaALI4p1xAVle0ECLwA4Adi8AI3F-MTpUSjpHXzoAQy9HRMiAMy9JVMtbe214iNp3VC8AnS94sro-AGYMuNpJTzoEJtpUAtQwhJSGnWy7BzoA+tS4ENq6auCQ9Lp3aO9phPqEYqrK+jG6HUcDJnUAGQBVHBxRAUYmDnlFGGoZG6Urwj4xbQDgh4UngiPZYjAAE9UAAHCAAGwQTGYhxOZzuFy+t3u0KuBA06j2QNBEKh5meInILiewj4ZE8pEuzG4nAAcrTiCZjMwABp4A4HPD-GBlUh9Al8Cl0KlMCDGADWADdVvjOfDqswDjYcHxdkw2RyuaRaqQ1YrOOw+QIFUwAEJqTTEMFgAAu4KgqAAllBmVc5N8YCbYadzqR3CoMcQxVLVntrXaHc6zEIXr6iTHCZRKf6mLJCH89swQBQQI6mCCoDasCAyKVJPFgnBqqkpn5JI5quJxMEdAF4qka3B5sEyKh2u1EHBm2RJJJgn50KkAtQ4JIdKgdO5hhUdH4fGQaj4PDsQABfIA and ran the code, you would get the ASCII output `EGG{SLEDE8ExampleForSPSTInternalUseOnly}`.
+
+## Egg 3
+If you downloaded the final image you got from enhancing the image ([December 3rd](https://github.com/WastefulNick/npst-2020#december-3rd)) and used a steganograpy tool on it, it would reveal that it held some data.
+```
+$ zsteg 9bab0c0ce96dd35b67aea468624852fb.png
+b1,g,msb,xy         .. file: PGP Secret Key -
+b1,rgb,lsb,xy       .. text: "EGG{MeasureOnceCutTwice}"
+
+...
+```
+The egg was `EGG{MeasureOnceCutTwice}`.
+
+## Egg 4
+This egg was simply to us in the mail, probably to introduce people who didn't know about eggs yet to them. The egg was `EGG{w0rlds_b3st_b0ss}`
+
+## Egg 5
+In slede8 there were 2 default e-learning modules. `Hei, verden!` `(Hello, world!)` and `Enkel addisjon` `(Simple addition)`. The modules were never given as a challenge, but were a nice introduction to slede8. The task for the hello world module was to simply print `Hello, World!\n`, using .DATA. Here is the code I used to solve it:
+```
+FINN helloworld
+SETT r15, 0x01 ; loop increment
+
+loop:
+LAST r2         ; load byte from helloworld into r2
+PLUSS r0, r15   ; increment position
+
+LIK r2, r14     ; if we hit a nullbyte, we've read entire string -> stop
+BHOPP stop
+
+SKRIV r2        ; else -> write data and keep going
+HOPP loop
+
+stop:
+STOPP
+
+helloworld:
+.DATA 0x48,0x65,0x6c,0x6c,0x6f,0x2c,0x20,0x57,0x6f,0x72,0x6c,0x64,0x21,0x0a,0x00 ; Hello, World!\n 
+```
+When we send in this code we get the egg `EGG{Hello, SLEDE8!}`
+
+## Egg 6
+A new program had randomly appeared on our dashboard; paint. The program was pretty cool, but didn't seem to serve any use. However, if you clicked on the button `Åpne Mal 3D (x86)` `(Open Paint 3D (x86))`. Clicking this button blue-screened your PC.
+
+![Paint Bluescreen](media/egg6_bluescreen.png)
+
+If you copied the assembly code into an online x86 (dis)assembler, such as https://defuse.ca/online-x86-assembler.htm and assembled it, you got the hex string `4547477B7838365F6D616368696E455F636F6445727D`. If you decode this into ASCII you get `EGG{x86_machinE_codEr}``.
+
+## Egg 7
+TODO: this
+
+## Egg 8
+TODO: this
+
+## Egg 9
+After solving the challenge on [December 14th](https://github.com/WastefulNick/npst-2020#december-14th), we got a new mail with an extra e-learning module. The module asked for the exact same thing as the challenge, except it had to be more efficient (use less iterations). My original code from the challenge turned out to be efficient enough, and I subitted it without issues. I received the egg `EGG{5f5fc8819e2cc6be9c6a19370a5030af}`
+
+## Egg 10
+TODO: this
+
+## Egg 11
+This egg was solveable since the 18th, but no one solved it until the 24th, which was quite interesting. On [December 18th](https://github.com/WastefulNick/npst-2020#december-18th) we got to know of the website https://pingvin.spst.no/, which had a link on it that lead to https://egg.spst.no/. The egg website was a simple website which asked for a password. I simply ignored this egg for a long time as I had no clue what to do, until it finally hit me on the 8 days later. If we think back to December 17th, the conversation, it started with.
+```
+Pen Gwyn: God kveld! - (Good evening!)
+Pen Gwyn: Over. - (Over.)
+SPST HQ?: Hei. - (Hi.)
+SPST HQ?: Har du funnet noe gøy? - (Have you found anything fun?)
+Pen Gwyn: Ja, se her. - (Yea, look here.)
+SPST HQ?: ??
+SPST HQ?: Jeg ser ingen ting. - (I see nothing)
+Pen Gwyn: ****************
+SPST HQ?: Jeg ser bare **************** - (I only see ****************)
+Pen Gwyn: Oi, jeg copy/pastet passordet mitt ved en feil. - (Oops, I copy/pastet my password by accident.)
+Pen Gwyn: Bra det ble sladdet - (Good that it got obscured.)
+SPST HQ?: jeger2 - (hunter2)
+Pen Gwyn: ??
+SPST HQ?: Det funket ikke... - (It didn't work...)
+
+...
+```
+Everyone just assumed that this was the old hunter2 joke, but there was more to it.
+
+![hunter2](https://i.kym-cdn.com/entries/icons/original/000/004/920/Bash.org-1p0f.png)
+
+Well turns out that the Pen Gwyn wasn't joking, his password was literally `****************`. If you entered the password on https://egg.spst.no/, you got the egg `EGG{AllIWantForChristmasIsPfeffErminZ}`
